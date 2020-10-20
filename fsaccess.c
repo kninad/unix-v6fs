@@ -17,6 +17,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -102,27 +103,32 @@ int main() {
             char *arg1 = strtok(NULL, " ");
             char *arg2 = strtok(NULL, " ");
             if (!arg1 || !arg2) {
-                printf("Arguments (external-file and v6-file) have not been entered?\n");
+                printf("Arguments (external-file and v6-file) have not been entered?\n\n");
             } else {
                 int ret = copy_in(arg1, arg2);
                 if (ret <= 0) {
-                    printf("\n Copy In Failed! \n");
+                    printf(" Copy In Operation Failed! \n\n");
+                } else {
+                    printf(" Copy In Operation Successful! \n\n");
                 }
             }
         } else if (strcmp(splitter, "cpout") == 0) {
             char *arg1 = strtok(NULL, " ");
             char *arg2 = strtok(NULL, " ");
             if (!arg1 || !arg2) {
-                printf("Arguments (external-file and v6-file) have not been entered?\n");
+                printf("Arguments (external-file and v6-file) have not been entered?\n\n");
             } else {
                 int ret = copy_out(arg1, arg2);
                 if (ret <= 0) {
-                    printf("\n Copy Out Failed! \n");
+                    printf(" Copy Out Operation Failed! \n\n");
+                } else {
+                    printf(" Copy Out Operation Successful! \n\n");
                 }
             }
         } else if (strcmp(splitter, "q") == 0) {
             lseek(fileDescriptor, BLOCK_SIZE, 0);
             write(fileDescriptor, &superBlock, BLOCK_SIZE);
+            close(fileDescriptor);
             return 0;
         }
     }
@@ -139,20 +145,20 @@ int preInitialization() {
 
     if (access(filepath, F_OK) != -1) {
         if (fileDescriptor = open(filepath, O_RDWR, 0600) == -1) {
-            printf("\n filesystem already exists but open() failed with error [%s]\n", strerror(errno));
+            printf("\n Filesystem already exists but open() failed with error [%s]\n\n", strerror(errno));
             return 1;
         }
         printf("Filesystem already exists and the same will be used.\n");
     } else {
         if (!n1 || !n2)
-            printf("All arguments(path, number of inodes and total number of blocks) have not been entered\n");
+            printf(" All arguments(path, number of inodes and total number of blocks) have not been entered\n\n");
         else {
             numBlocks = atoi(n1);
             numInodes = atoi(n2);
             if (initfs(filepath, numBlocks, numInodes)) {
-                printf("The file system is initialized\n");
+                printf(" The file system is initialized\n\n");
             } else {
-                printf("Error initializing file system. Exiting... \n");
+                printf(" Error initializing file system. Exiting... \n\n");
                 return 1;
             }
         }
@@ -346,6 +352,7 @@ int copy_in(char *external_file, char *v6_filename) {
         printf("\n open() failed with the following error [%s]\n", strerror(errno));
         return -1;
     }
+    // printf("\nOpened the external file.\n");
 
     unsigned short inode_num = get_free_inode_num();
     inode_type inode = read_inode_from_num(inode_num);
@@ -397,11 +404,82 @@ int copy_in(char *external_file, char *v6_filename) {
     // update root's inode size and write out inode
     root_inode.size += sizeof(dir_type);
     write_inode_num(root_inode_num, root_inode);
+    close(extf_descriptor);    
     return 1;  // success!
+}
+
+// Check whether file is the file associated with dir entry
+bool filename_in_direntry(char *file_name, dir_type dir) {
+    return (strcmp(file_name, dir.filename) == 0);
+}
+
+// Check whether the flags satisfy those for: alloc, directory
+bool check_flag_dir(u_short flags) {
+    // should be allocated and a directory!
+    return ( (flags & dir_flag) != 0 && (flags & inode_alloc_flag) != 0);
 }
 
 // Copy out from a v6 file into an external file
 int copy_out(char *v6_file, char *external_file) {
-    
+    // Assumes external file does not exist. Otherwise will over-write.
+    int extf_descriptor;
+    if ((extf_descriptor = open(external_file, O_WRONLY | O_CREAT , 0700)) == -1) {
+        printf("\n open() failed with the following error [%s]\n", strerror(errno));
+        return -1;
+    }
+
+    // Check for v6file in root dir! Read in 16 byte segments of dir_type and compare
+    // given v6 filename
+    u_int root_inode_num = 1;
+    inode_type root_inode = read_inode_from_num(root_inode_num);
+    if (!(check_flag_dir(root_inode.flags))) {
+        printf("\nRoot direcotry not allocated or not init as a directory! Error!\n");
+        return -1;
+    }
+    // init to zero. If zero at end, it means file not found in root dir!
+    ushort inode_num_v6file = 0;
+    dir_type tmp_buffer;
+    bool flag_found = false;
+
+    for (int i = 0; i < ADDR_SIZE; ++i) {
+        if (flag_found) {
+            break;
+        }
+        
+        uint block_num = root_inode.addr[i];
+        lseek(fileDescriptor, block_num * BLOCK_SIZE, SEEK_SET);
+        uint read_bytes = read(fileDescriptor, &tmp_buffer, sizeof(dir_type));
+        uint count = read_bytes;
+        
+        while (read_bytes > 0 && count <= BLOCK_SIZE) {
+            if (filename_in_direntry(v6_file, tmp_buffer)) {
+                inode_num_v6file = tmp_buffer.inode;  // inode number saved!
+                flag_found = true;                    // to break out of outer loop
+                break;
+            }
+            read_bytes = read(fileDescriptor, &tmp_buffer, sizeof(dir_type));
+            count += read_bytes;
+        }
+    }
+
+    if (!flag_found) {
+        printf("\nV6 file not found in root directory! Error!\n");
+        return -1;
+    }
+
+    // Now using the inode, write out contents to external file
+    inode_type inode_v6file = read_inode_from_num(inode_num_v6file);
+    lseek(extf_descriptor, 0, SEEK_SET);  // move to very beginning of external file
+    uint buffer[BLOCK_SIZE / 4];
+    for (int i = 0; i < ADDR_SIZE; ++i) {
+        uint curr_block_num = inode_v6file.addr[i];
+        if (curr_block_num == 0) {  // go no further!
+            break;
+        }
+        lseek(fileDescriptor, curr_block_num * BLOCK_SIZE, SEEK_SET);
+        read(fileDescriptor, buffer, BLOCK_SIZE);
+        write(extf_descriptor, buffer, BLOCK_SIZE);
+    }
+    close(extf_descriptor);
     return 1;
 }
