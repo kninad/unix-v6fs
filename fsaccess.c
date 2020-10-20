@@ -58,14 +58,14 @@ typedef struct {
     unsigned short modtime[2];
 } inode_type;
 
-inode_type inode;
+// inode_type inode;
 
 typedef struct {
     unsigned short inode;
     unsigned char filename[14];
 } dir_type;
 
-dir_type root;
+// dir_type root;
 
 int fileDescriptor;  //file descriptor, global variable!
 const unsigned short inode_alloc_flag = 0100000;
@@ -235,6 +235,9 @@ void add_block_to_free_list(int block_number, unsigned int *empty_buffer) {
 void create_root() {
     int root_data_block = 2 + superBlock.isize;  // Allocating 1st data block to root dir
     int i;
+
+    dir_type root;
+    inode_type inode;
 
     root.inode = 1;  // root directory's inode number is 1.
     root.filename[0] = '.';
