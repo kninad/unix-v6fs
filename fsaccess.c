@@ -30,8 +30,8 @@
 
 // Superblock Structure
 typedef struct {
-    unsigned short isize;
-    unsigned short fsize;
+    unsigned short isize;  // num blocks used for the inodes
+    unsigned short fsize;  // total number of blocks in the fs
     unsigned short nfree;
     unsigned int free[FREE_SIZE];
     unsigned short ninode;
@@ -61,15 +61,16 @@ typedef struct {
 // Directory Structure
 typedef struct {
     unsigned short inode;
-    unsigned char filename[14];
+    char filename[14];
 } dir_type;
 
-int fileDescriptor;  //file descriptor, global variable!
+int fileDescriptor;  //file descriptor for the v6 fs, global variable!
 const unsigned short inode_alloc_flag = 0100000;
 const unsigned short dir_flag = 040000;
 const unsigned short dir_large_file = 010000;
 const unsigned short dir_access_rights = 000777;  // User, Group, & World have all access privileges
 const unsigned short INODE_SIZE = 64;             // inode has been doubled
+unsigned int num_blocks, num_inodes;              // global store
 
 // Function Prototypes
 int initfs(char *path, unsigned short total_blcks, unsigned short total_inodes);
@@ -156,6 +157,10 @@ int initfs(char *path, unsigned short blocks, unsigned short inodes) {
     unsigned int buffer[BLOCK_SIZE / 4];
     int bytes_written;
 
+    // set the global variables for this run of initfs
+    num_blocks = blocks;
+    num_inodes = inodes;
+
     // unsigned short i = 0;
     superBlock.fsize = blocks;
     unsigned short inodes_per_block = BLOCK_SIZE / INODE_SIZE;
@@ -212,8 +217,9 @@ int initfs(char *path, unsigned short blocks, unsigned short inodes) {
 void add_block_to_free_list(int block_number, unsigned int *empty_buffer) {
     if (superBlock.nfree == FREE_SIZE) {
         unsigned int free_list_data[BLOCK_SIZE / 4];
-        free_list_data[0] = FREE_SIZE;
+        free_list_data[0] = FREE_SIZE;  // curr value of nfree
 
+        // Copy the contents (nfre, free array) to free_list_data
         for (int i = 0; i < BLOCK_SIZE / 4; i++) {
             if (i < FREE_SIZE) {
                 free_list_data[i + 1] = superBlock.free[i];
@@ -221,6 +227,7 @@ void add_block_to_free_list(int block_number, unsigned int *empty_buffer) {
                 free_list_data[i + 1] = 0;  // getting rid of junk data in the remaining unused bytes of header block
             }
         }
+        // Copy nfree and free array (via free_list_data) to the given block_number
         lseek(fileDescriptor, block_number * BLOCK_SIZE, SEEK_SET);
         write(fileDescriptor, free_list_data, BLOCK_SIZE);  // Writing free list to header block
         superBlock.nfree = 0;
@@ -276,9 +283,64 @@ void create_root() {
     write(fileDescriptor, &root, sizeof(dir_type));
 }
 
+// Get the inode corresponding to the inode number
+inode_type inode_from_num(int inode_num) {
+    int block_num = (inode_num * INODE_SIZE) / BLOCK_SIZE;
+    int offset = (inode_num * INODE_SIZE) % BLOCK_SIZE;
+    inode_type tmp_inode;
+    lseek(fileDescriptor, block_num + offset, SEEK_SET);
+    read(fileDescriptor, &tmp_inode, INODE_SIZE);
+    return tmp_inode;
+}
+
+// Get the number for "a" free inode
+unsigned short get_free_inode_num() {
+    if (superBlock.ninode == 0) {
+        // Iterate through all the inodes and add free ones to the inode[] array.
+        // Start from i = 2 since i = 1 is for root.
+        for (int i = 2; i <= num_inodes, superBlock.ninode <= I_SIZE; ++i) {
+            inode_type tmp_inode = inode_from_num(i);
+            // flags >> 15 is the M.S.B and taking its AND with 1: free or not?
+            if ((tmp_inode.flags >> 15) & 1 == 0) { // Free inode!
+                superBlock.inode[superBlock.ninode] = i;
+                ++superBlock.ninode;
+            }
+        }    
+    --superBlock.ninode;
+    return superBlock.inode[ninode];
+    }
+}
+
 // Copy in external file into a v6 file
-void copy_in(char *external_file, char *v6_file) {
-    printf("Implementing!\n");
+void copy_in(char *external_file, char *v6_filename) {
+    int extf_descriptor;
+    if ((extf_descriptor = open(external_file, O_RDONLY, 0700)) == -1) {
+        printf("\n open() failed with the following error [%s]\n", strerror(errno));
+        return 0;
+    }
+
+    int inode_num = get_free_inode_num();
+    inode_type inode = inode_from_num(inode_num);
+    dir_type v6file;
+    v6file.inode = inode_num;
+    v6file.filename = v6_filename;
+
+    inode.flags = inode_alloc_flag | dir_access_rights; // set flags
+    inode.nlinks = 0;
+    inode.uid = 0;
+    inode.gid = 0;
+    inode.size = INODE_SIZE;    
+    inode.actime[0] = 0;
+    inode.modtime[0] = 0;
+    inode.modtime[1] = 0;
+    // Now for the data blocks!
+
+
+
+    // Update Root Directory! (All files are stored in root)
+
+
+
 }
 
 // Copy out from a v6 file into an external file
