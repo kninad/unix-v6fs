@@ -10,9 +10,11 @@ the command.
 
 `initfs()`: first opens the file using the given path! this code is useful and should be 
 used later on in other functions too?
-inits the superblock and also writes in the inode blocks and the data blocks
- 
-
+inits the superblock and also writes in the empty inode blocks and the data blocks.
+Then we write out the root using the `create_root` call. Finally, we add all remaining
+data blocks to the free list.
+Note that all throughout initfs, the buffer array is empty. Think
+of it like a placeholder to represent all zero entries.
 
 `int buf[blk_size / 4]` -- buffer is an array representing the data for a block.
 Each blk is 1024 bytes big (`blk_size = 1024`) and an int is 4 bytes, so that we will have
@@ -22,6 +24,8 @@ Each blk is 1024 bytes big (`blk_size = 1024`) and an int is 4 bytes, so that we
 overall, and the first inode) -- right after the superblock. write out the data block
 of the root, it will be a `dir_entry` struct named `root` which is written to the 1st 
 data block which is at `superblock.isize + 2` location.
+
+
 
 
 
