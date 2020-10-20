@@ -30,7 +30,8 @@ length `FREE_SIZE` rather than the entire `BLK_SIZE / 4`. free size will presuma
 lesser space -- however it really does not matter in the grand scheme of things.
 
 `copy_in`: open the external file and v6 file system. v6 file will always be within the 
-root directory.
+root directory. create inode for the file. Start filling in info one block at a time
+and store the blocks in inode's addr using a tmp buffer. 
 
 
 `copy_out`:
