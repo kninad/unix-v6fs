@@ -293,6 +293,7 @@ inode_type read_inode_from_num(int inode_num) {
     return tmp_inode;
 }
 
+// Write the given inode into the num position in inode table!
 void write_inode_num(int inode_num, inode_type inode) {
     unsigned int block_num = (inode_num - 1) * INODE_SIZE / BLOCK_SIZE + 2;
     unsigned int offset = (inode_num - 1) * INODE_SIZE % BLOCK_SIZE;
@@ -318,6 +319,7 @@ unsigned short get_free_inode_num() {
     }
 }
 
+// Get the block number for a free block.
 unsigned int get_free_block() {
     --superBlock.nfree;
     if (superBlock.nfree == 0) {
@@ -354,38 +356,33 @@ void copy_in(char *external_file, char *v6_filename) {
     unsigned int read_flag = BLOCK_SIZE, fsize = 0, block_num;
     int idx = 0;  // idx in the addr[] array for the v6 file's inode.
     while (read_flag == BLOCK_SIZE) {
-        read_flag = read(extf_descriptor, &buffer, BLOCK_SIZE);
+        read_flag = read(extf_descriptor, buffer, BLOCK_SIZE);
         block_num = get_free_block();
         lseek(fileDescriptor, block_num * BLOCK_SIZE, SEEK_SET);
-        write(fileDescriptor, &buffer, BLOCK_SIZE);
+        write(fileDescriptor, buffer, BLOCK_SIZE);
         inode.addr[idx] = block_num;
         idx += 1;
         fsize += read_flag;
     }
     write_inode_num(inode_num, inode);
 
-    // Update Root Directory with v6file (All files are stored in root)
+    // Update Root Directory Data Block with v6file (All files are stored in root)
     dir_type v6file;
     v6file.inode = inode_num;
     v6file.filename = v6_filename;
 
     int root_inode_num = 1;
     inode_type root_inode = read_inode_from_num(root_inode_num);
-    for (int i = 0; i < ADDR_SIZE; ++i) {
-        if (root_inode.addr[i] == 0) break;
-    }
-    dir_type tmp_buffer;
-    int block_to_write = addr[i - 1];
-    lseek(fileDescriptor, block_to_write * BLOCK_SIZE, SEEK_SET);
-    // 16 bytes chunks: sizeof(dir_type) at a time.
-    int bytes_read = read(fileDescriptor, tmp_buffer, sizeof(dir_type));
-    int offset = 0;
-    while (bytes_read > 0) {
-        offset += bytes_read;
-    }
-    // Now reposition lseek using the offset!
-    lseek(fileDescriptor, block_to_write * BLOCK_SIZE + offset, SEEK_SET);
-    write(fileDescriptor, &v6file, sizeof(dir_type))
+    
+    int bidx_addr = root_inode.size / BLOCK_SIZE; 
+    int offset = root_inode.size % BLOCK_SIZE; 
+    int block_num = addr[bidx_addr]; // < 11?
+    lseek(fileDescriptor, block_num * BLOCK_SIZE + offset, SEEK_SET);
+    write(fileDescriptor, &v6file, sizeof(dir_type));
+    
+    // update root's inode size!
+    root_inode.size += sizeof(dir_type);
+    write_inode_num(root_inode_num, root_inode);
 }
 
 // Copy out from a v6 file into an external file
