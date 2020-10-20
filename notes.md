@@ -25,7 +25,12 @@ overall, and the first inode) -- right after the superblock. write out the data 
 of the root, it will be a `dir_entry` struct named `root` which is written to the 1st 
 data block which is at `superblock.isize + 2` location.
 
+In `add_block_to_free_list`, we only need to create the `free_list_data` to be of
+length `FREE_SIZE` rather than the entire `BLK_SIZE / 4`. free size will presumably take
+lesser space -- however it really does not matter in the grand scheme of things.
+
+`copy_in`: open the external file and v6 file system. v6 file will always be within the 
+root directory.
 
 
-
-
+`copy_out`:
