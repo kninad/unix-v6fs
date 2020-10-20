@@ -34,4 +34,8 @@ root directory. create inode for the file. Start filling in info one block at a 
 and store the blocks in inode's addr using a tmp buffer. 
 
 
-`copy_out`:
+`copy_out`: open the external file in append mode!
+
+
+Implemented but difference in hello.txt and h2.txt!
+Maybe need to write/read using a `char buffer[BLOCK_SIZE]` instead of an `int buffer[]`?
