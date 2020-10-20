@@ -42,7 +42,7 @@ typedef struct {
     unsigned short time[2];
 } superblock_type;
 
-// Since only 1 super block for the fs, its okay to initialize it here. Used in a lot 
+// Since only 1 super block for the fs, its okay to initialize it here. Used in a lot
 // donwstream functions which assume its a global variable.
 superblock_type superBlock;
 
@@ -99,7 +99,7 @@ int main() {
         } else if (strcmp(splitter, "cpin") == 0) {
             char *arg1 = strtok(NULL, " ");
             char *arg2 = strtok(NULL, " ");
-            if (!arg1 || !arg2){
+            if (!arg1 || !arg2) {
                 printf("Arguments (external-file and v6-file) have not been entered?\n");
             } else {
                 copy_in(arg1, arg2);
@@ -107,7 +107,7 @@ int main() {
         } else if (strcmp(splitter, "cpout") == 0) {
             char *arg1 = strtok(NULL, " ");
             char *arg2 = strtok(NULL, " ");
-            if (!arg1 || !arg2){
+            if (!arg1 || !arg2) {
                 printf("Arguments (external-file and v6-file) have not been entered?\n");
             } else {
                 copy_out(arg1, arg2);
@@ -200,7 +200,7 @@ int initfs(char *path, unsigned short blocks, unsigned short inodes) {
 
     // Create root directory
     create_root();
-
+    // an extra +1 at the end since root's data block is already initialized
     for (int i = 2 + superBlock.isize + 1; i < data_blocks_for_free_list; i++) {
         add_block_to_free_list(i, buffer);
     }
@@ -211,34 +211,31 @@ int initfs(char *path, unsigned short blocks, unsigned short inodes) {
 // Add Data blocks to free list
 void add_block_to_free_list(int block_number, unsigned int *empty_buffer) {
     if (superBlock.nfree == FREE_SIZE) {
-        int free_list_data[BLOCK_SIZE / 4], i;
+        unsigned int free_list_data[BLOCK_SIZE / 4];
         free_list_data[0] = FREE_SIZE;
 
-        for (i = 0; i < BLOCK_SIZE / 4; i++) {
+        for (int i = 0; i < BLOCK_SIZE / 4; i++) {
             if (i < FREE_SIZE) {
                 free_list_data[i + 1] = superBlock.free[i];
             } else {
                 free_list_data[i + 1] = 0;  // getting rid of junk data in the remaining unused bytes of header block
             }
         }
-
-        lseek(fileDescriptor, (block_number)*BLOCK_SIZE, 0);
+        lseek(fileDescriptor, block_number * BLOCK_SIZE, SEEK_SET);
         write(fileDescriptor, free_list_data, BLOCK_SIZE);  // Writing free list to header block
-
         superBlock.nfree = 0;
     } else {
-        lseek(fileDescriptor, (block_number)*BLOCK_SIZE, 0);
+        lseek(fileDescriptor, block_number * BLOCK_SIZE, SEEK_SET);
         write(fileDescriptor, empty_buffer, BLOCK_SIZE);  // writing 0 to remaining data blocks to get rid of junk data
     }
-
     superBlock.free[superBlock.nfree] = block_number;  // Assigning blocks to free array
     ++superBlock.nfree;
 }
 
 // Create root directory
 void create_root() {
-    dir_type root; // data block for the root directory
-    inode_type inode; // inode for the root
+    dir_type root;                               // data block for the root directory
+    inode_type inode;                            // inode for the root
     int root_data_block = 2 + superBlock.isize;  // Allocating 1st data block to root dir
     int i;
 
@@ -252,7 +249,7 @@ void create_root() {
     inode.gid = 0;
     inode.size = INODE_SIZE;
     inode.addr[0] = root_data_block;
-    // Set rest of addresses in the inode to zero. 
+    // Set rest of addresses in the inode to zero.
     for (i = 1; i < ADDR_SIZE; i++) {
         inode.addr[i] = 0;
     }
@@ -262,7 +259,7 @@ void create_root() {
     inode.modtime[1] = 0;
 
     // 2 * BLK_SIZE since the inode for root is the next block after the super block
-    // technically the second block overall in the filesystem 
+    // technically the second block overall in the filesystem
     lseek(fileDescriptor, 2 * BLOCK_SIZE, SEEK_SET);
     write(fileDescriptor, &inode, INODE_SIZE);  //
 
