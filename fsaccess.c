@@ -29,7 +29,6 @@
 #define INPUT_SIZE 256
 
 // Superblock Structure
-
 typedef struct {
     unsigned short isize;
     unsigned short fsize;
@@ -43,10 +42,11 @@ typedef struct {
     unsigned short time[2];
 } superblock_type;
 
+// Since only 1 super block for the fs, its okay to initialize it here. Used in a lot 
+// donwstream functions which assume its a global variable.
 superblock_type superBlock;
 
 // I-Node Structure
-
 typedef struct {
     unsigned short flags;
     unsigned short nlinks;
@@ -58,14 +58,11 @@ typedef struct {
     unsigned short modtime[2];
 } inode_type;
 
-// inode_type inode;
-
+// Directory Structure
 typedef struct {
     unsigned short inode;
     unsigned char filename[14];
 } dir_type;
-
-// dir_type root;
 
 int fileDescriptor;  //file descriptor, global variable!
 const unsigned short inode_alloc_flag = 0100000;
@@ -87,7 +84,8 @@ int main() {
     char *splitter;
     unsigned int numBlocks = 0, numInodes = 0;
     char *filepath;
-    printf("Size of super block = %d , size of i-node = %d\n", sizeof(superBlock), sizeof(inode));
+    // printf("Size of super block = %d , size of i-node = %d\n", sizeof(superBlock), sizeof(inode));
+    printf("Size of super block = %d , size of i-node = %d\n", sizeof(superblock_type), sizeof(inode_type));
     printf("Enter command:\n");
 
     while (1) {
@@ -99,15 +97,21 @@ int main() {
             preInitialization();
             splitter = NULL;  // why? safety?
         } else if (strcmp(splitter, "cpin") == 0) {
-            printf("Implement this! Call the required functions below!\n");
             char *arg1 = strtok(NULL, " ");
             char *arg2 = strtok(NULL, " ");
-            copy_in(arg1, arg2);
+            if (!arg1 || !arg2){
+                printf("Arguments (external-file and v6-file) have not been entered?\n");
+            } else {
+                copy_in(arg1, arg2);
+            }
         } else if (strcmp(splitter, "cpout") == 0) {
-            printf("Implement this! Call the required functions below!\n");
             char *arg1 = strtok(NULL, " ");
             char *arg2 = strtok(NULL, " ");
-            copy_out(arg1, arg2);
+            if (!arg1 || !arg2){
+                printf("Arguments (external-file and v6-file) have not been entered?\n");
+            } else {
+                copy_out(arg1, arg2);
+            }
         } else if (strcmp(splitter, "q") == 0) {
             lseek(fileDescriptor, BLOCK_SIZE, 0);
             write(fileDescriptor, &superBlock, BLOCK_SIZE);
@@ -152,7 +156,7 @@ int initfs(char *path, unsigned short blocks, unsigned short inodes) {
     unsigned int buffer[BLOCK_SIZE / 4];
     int bytes_written;
 
-    unsigned short i = 0;
+    // unsigned short i = 0;
     superBlock.fsize = blocks;
     unsigned short inodes_per_block = BLOCK_SIZE / INODE_SIZE;
 
@@ -166,13 +170,13 @@ int initfs(char *path, unsigned short blocks, unsigned short inodes) {
         return 0;
     }
 
-    for (i = 0; i < FREE_SIZE; i++)
+    for (int i = 0; i < FREE_SIZE; i++)
         superBlock.free[i] = 0;  //initializing free array to 0 to remove junk data. free array will be stored with data block numbers shortly.
 
     superBlock.nfree = 0;
     superBlock.ninode = I_SIZE;
 
-    for (i = 0; i < I_SIZE; i++)
+    for (int i = 0; i < I_SIZE; i++)
         superBlock.inode[i] = i + 1;  //Initializing the inode array to inode numbers
 
     superBlock.flock = 'a';  //flock,ilock and fmode are not used.
@@ -185,10 +189,10 @@ int initfs(char *path, unsigned short blocks, unsigned short inodes) {
     write(fileDescriptor, &superBlock, BLOCK_SIZE);  // writing superblock to file system
 
     // writing zeroes to all inodes in ilist
-    for (i = 0; i < BLOCK_SIZE / 4; i++)
+    for (int i = 0; i < BLOCK_SIZE / 4; i++)
         buffer[i] = 0;
 
-    for (i = 0; i < superBlock.isize; i++)
+    for (int i = 0; i < superBlock.isize; i++)
         write(fileDescriptor, buffer, BLOCK_SIZE);
 
     int data_blocks = blocks - 2 - superBlock.isize;
@@ -197,7 +201,7 @@ int initfs(char *path, unsigned short blocks, unsigned short inodes) {
     // Create root directory
     create_root();
 
-    for (i = 2 + superBlock.isize + 1; i < data_blocks_for_free_list; i++) {
+    for (int i = 2 + superBlock.isize + 1; i < data_blocks_for_free_list; i++) {
         add_block_to_free_list(i, buffer);
     }
 
@@ -233,11 +237,10 @@ void add_block_to_free_list(int block_number, unsigned int *empty_buffer) {
 
 // Create root directory
 void create_root() {
+    dir_type root; // data block for the root directory
+    inode_type inode; // inode for the root
     int root_data_block = 2 + superBlock.isize;  // Allocating 1st data block to root dir
     int i;
-
-    dir_type root;
-    inode_type inode;
 
     root.inode = 1;  // root directory's inode number is 1.
     root.filename[0] = '.';
@@ -278,10 +281,10 @@ void create_root() {
 
 // Copy in external file into a v6 file
 void copy_in(char *external_file, char *v6_file) {
-    print("Implementing!\n");
+    printf("Implementing!\n");
 }
 
 // Copy out from a v6 file into an external file
 void copy_out(char *v6_file, char *external_file) {
-    print("Implementing!\n")
+    printf("Implementing!\n");
 }
