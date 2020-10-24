@@ -299,19 +299,22 @@ void create_root() {
 
 // Get the inode corresponding to the inode number
 inode_type read_inode_from_num(unsigned short inode_num) {
-    unsigned int block_num = (inode_num - 1) * INODE_SIZE / BLOCK_SIZE + 2;
-    unsigned int offset = (inode_num - 1) * INODE_SIZE % BLOCK_SIZE;
+    unsigned int inodes_per_block = BLOCK_SIZE / INODE_SIZE;    
+    unsigned int block_num = (inode_num / inodes_per_block) + 2;
+    unsigned int offset = (inode_num % inodes_per_block) - 1; // after how many inodes
+    // eg. if inum = 1, no offset! first inode on the block    
     inode_type tmp_inode;
-    lseek(fileDescriptor, block_num * BLOCK_SIZE + offset, SEEK_SET);
+    lseek(fileDescriptor, block_num * BLOCK_SIZE + offset * INODE_SIZE, SEEK_SET);
     read(fileDescriptor, &tmp_inode, INODE_SIZE);
     return tmp_inode;
 }
 
-// Write the given inode into the num position in inode table!
+// Write the given inode into the num position in inode table i.e as inode with number = inode_num
 void write_inode_num(unsigned short inode_num, inode_type inode) {
-    unsigned int block_num = (inode_num - 1) * INODE_SIZE / BLOCK_SIZE + 2;
-    unsigned int offset = (inode_num - 1) * INODE_SIZE % BLOCK_SIZE;
-    lseek(fileDescriptor, block_num * BLOCK_SIZE + offset, SEEK_SET);
+    unsigned int inodes_per_block = BLOCK_SIZE / INODE_SIZE;    
+    unsigned int block_num = (inode_num / inodes_per_block) + 2;
+    unsigned int offset = (inode_num % inodes_per_block) - 1; // after how many inodes
+    lseek(fileDescriptor, block_num * BLOCK_SIZE + offset * INODE_SIZE, SEEK_SET);
     write(fileDescriptor, &inode, INODE_SIZE);
 }
 
