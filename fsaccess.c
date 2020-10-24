@@ -349,6 +349,14 @@ unsigned int get_free_block() {
     return superBlock.free[superBlock.nfree];
 }
 
+void print_char_buffer(char buffer[], int size){
+    printf("\n\tPrinting buffer!\n");
+    for(int i=0; i < size; ++i){
+        printf("%c ", buffer[i]);
+    }
+    printf("\n");
+}
+
 // Copy in external file into a v6 file
 int copy_in(char *external_file, char *v6_filename) {
     int extf_descriptor;
@@ -369,17 +377,21 @@ int copy_in(char *external_file, char *v6_filename) {
     inode.actime[0] = 0;
     inode.modtime[0] = 0;
     inode.modtime[1] = 0;
+    
     // Now for the data blocks!
-    unsigned int buffer[BLOCK_SIZE / 4], read_flag, block_num;
+    char buffer[BLOCK_SIZE] = {0}; // init with zero to avoid garbage value.
+    int read_flag, block_num;
     unsigned int fsize = 0, idx = 0;  // idx in the addr[] array for the v6 file's inode.
     read_flag = read(extf_descriptor, buffer, BLOCK_SIZE);
     while (read_flag > 0) {  // 0 -> EOF, -1 -> Error.
+        // printf("params: %d, %d, %d", read_flag, idx, fsize);
+        // util_print_buffer(buffer, BLOCK_SIZE);
         block_num = get_free_block();
         lseek(fileDescriptor, block_num * BLOCK_SIZE, SEEK_SET);
         write(fileDescriptor, buffer, BLOCK_SIZE);
         inode.addr[idx] = block_num;
         idx += 1;
-        fsize += read_flag;
+        fsize += read_flag; // increment number of bytes read
         read_flag = read(extf_descriptor, buffer, BLOCK_SIZE);
     }
     inode.size = fsize;
@@ -389,9 +401,9 @@ int copy_in(char *external_file, char *v6_filename) {
     dir_type v6file;
     v6file.inode = inode_num;
     strcpy(v6file.filename, v6_filename);  // v6file.filename := v6_filename;
-
-    unsigned short root_inode_num = 1;
-    inode_type root_inode = read_inode_from_num(root_inode_num);
+    const int ROOT_INODE = 1;
+    inode_type root_inode = read_inode_from_num(ROOT_INODE);
+    
     // Move to appropriate position in root dir's last data block and write out info
     unsigned int bidx_addr = root_inode.size / BLOCK_SIZE;
     unsigned int offset = root_inode.size % BLOCK_SIZE;
@@ -406,8 +418,8 @@ int copy_in(char *external_file, char *v6_filename) {
     lseek(fileDescriptor, root_last_block_num * BLOCK_SIZE + offset, SEEK_SET);
     write(fileDescriptor, &v6file, sizeof(dir_type));
     // update root's inode size and write out inode
-    root_inode.size += sizeof(dir_type);
-    write_inode_num(root_inode_num, root_inode);
+    root_inode.size += sizeof(dir_type); // since one more child addded to root!
+    write_inode_num(ROOT_INODE, root_inode);
     close(extf_descriptor);    
     return 1;  // success!
 }
@@ -422,6 +434,7 @@ bool check_flag_dir(u_short flags) {
     // should be allocated and a directory!
     return ( (flags & dir_flag) != 0 && (flags & inode_alloc_flag) != 0);
 }
+
 
 // Copy out from a v6 file into an external file
 int copy_out(char *v6_file, char *external_file) {
@@ -444,17 +457,15 @@ int copy_out(char *v6_file, char *external_file) {
     ushort inode_num_v6file = 0;
     dir_type tmp_buffer;
     bool flag_found = false;
-
+    
     for (int i = 0; i < ADDR_SIZE; ++i) {
         if (flag_found) {
             break;
-        }
-        
+        }        
         uint block_num = root_inode.addr[i];
         lseek(fileDescriptor, block_num * BLOCK_SIZE, SEEK_SET);
         uint read_bytes = read(fileDescriptor, &tmp_buffer, sizeof(dir_type));
-        uint count = read_bytes;
-        
+        uint count = read_bytes;        
         while (read_bytes > 0 && count <= BLOCK_SIZE) {
             if (filename_in_direntry(v6_file, tmp_buffer)) {
                 inode_num_v6file = tmp_buffer.inode;  // inode number saved!
@@ -465,22 +476,22 @@ int copy_out(char *v6_file, char *external_file) {
             count += read_bytes;
         }
     }
-
     if (!flag_found) {
-        printf("\nV6 file not found in root directory! Error!\n");
+        printf("\nGiven V6 file not found in root directory! Error!\n");
         return -1;
     }
 
     // Now using the inode, write out contents to external file
     inode_type inode_v6file = read_inode_from_num(inode_num_v6file);
     lseek(extf_descriptor, 0, SEEK_SET);  // move to very beginning of external file
-    uint buffer[BLOCK_SIZE / 4];
+    char buffer[BLOCK_SIZE] = {0};
     for (int i = 0; i < ADDR_SIZE; ++i) {
         uint curr_block_num = inode_v6file.addr[i];
         if (curr_block_num == 0) {  // go no further!
             break;
         }
         lseek(fileDescriptor, curr_block_num * BLOCK_SIZE, SEEK_SET);
+        // print_char_buffer(buffer, BLOCK_SIZE);
         read(fileDescriptor, buffer, BLOCK_SIZE);
         write(extf_descriptor, buffer, BLOCK_SIZE);
     }
