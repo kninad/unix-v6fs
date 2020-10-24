@@ -31,16 +31,17 @@
 
 // Superblock Structure
 typedef struct {
-    unsigned short isize;  // num blocks used for the inodes
-    unsigned short fsize;  // total number of blocks in the fs
-    unsigned short nfree;
-    unsigned int free[FREE_SIZE];
-    unsigned short ninode;
-    unsigned short inode[I_SIZE];
     char flock;
     char ilock;
-    unsigned short fmod;
+    char fmod;
+    unsigned short isize;  // num blocks used for the inodes
+    unsigned short fsize;  // total number of blocks in the fs
+    unsigned short nfree;    
     unsigned short time[2];
+    unsigned short ninode;    
+    unsigned short inode[I_SIZE];
+    unsigned int free[FREE_SIZE];
+    
 } superblock_type;
 
 // Since only 1 super block for the fs, its okay to initialize it here. Used in a lot
@@ -194,16 +195,17 @@ int initfs(char *path, unsigned short blocks, unsigned short inodes) {
     superBlock.nfree = 0;
     superBlock.ninode = I_SIZE;
 
+    // inode num = 1 is reserved for root. 
     for (int i = 0; i < I_SIZE; i++)
         superBlock.inode[i] = i + 1;  //Initializing the inode array to inode numbers
 
     superBlock.flock = 'a';  //flock,ilock and fmode are not used.
     superBlock.ilock = 'b';
-    superBlock.fmod = 0;
+    superBlock.fmod = 'c'; // fmod is also of char type
     superBlock.time[0] = 0;
     superBlock.time[1] = 1970;
 
-    lseek(fileDescriptor, BLOCK_SIZE, SEEK_SET);
+    lseek(fileDescriptor, 1 * BLOCK_SIZE, SEEK_SET); // since first block!
     write(fileDescriptor, &superBlock, BLOCK_SIZE);  // writing superblock to file system
 
     // writing zeroes to all inodes in ilist
@@ -282,17 +284,16 @@ void create_root() {
     // technically the second block overall in the filesystem
     lseek(fileDescriptor, 2 * BLOCK_SIZE, SEEK_SET);
     write(fileDescriptor, &inode, INODE_SIZE);  //
-
-    // lseek(fileDescriptor, root_data_block, 0);
-    lseek(fileDescriptor, root_data_block, SEEK_SET);
+    
+    // lseek(fileDescriptor, root_data_block, SEEK_SET);
+    lseek(fileDescriptor, root_data_block * BLOCK_SIZE, SEEK_SET); // this is correct?
     // write(fileDescriptor, &root, 16);
     write(fileDescriptor, &root, sizeof(dir_type));
 
+    // Write out the entry for ".."
     root.filename[0] = '.';
     root.filename[1] = '.';
-    root.filename[2] = '\0';
-
-    // write(fileDescriptor, &root, 16); // sizeof(dir_type) = 16;
+    root.filename[2] = '\0';    
     write(fileDescriptor, &root, sizeof(dir_type));
 }
 
