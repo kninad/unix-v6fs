@@ -383,7 +383,7 @@ int copy_in(char *external_file, char *v6_filename) {
         printf("\n open() failed with the following error [%s]\n", strerror(errno));
         return -1;
     }
-    printf("Opened the external file.\n");
+    // printf("Opened the external file.\n");
 
     unsigned short inode_num = get_free_inode_num();
     inode_type inode = read_inode_from_num(inode_num);
@@ -448,16 +448,16 @@ int copy_in(char *external_file, char *v6_filename) {
 int copy_out(char *v6_file, char *external_file) {
     // Assumes external file does not exist. Otherwise will over-write.
     int extf_descriptor;
-    if ((extf_descriptor = open(external_file, O_WRONLY | O_CREAT, 0700)) == -1) {
+    if ((extf_descriptor = open(external_file, O_WRONLY | O_CREAT | O_APPEND, 0700)) == -1) {
         printf(" open() failed with the following error [%s]\n", strerror(errno));
         return -1;
     }
 
-    printf("Opened the external file.\n");
+    // printf("Opened the external file.\n");
 
     // Check for v6file in root dir! Read in 16 byte segments of dir_type and compare
     // given v6 filename
-    u_int root_inode_num = 1;
+    uint root_inode_num = 1;
     inode_type root_inode = read_inode_from_num(root_inode_num);
     // if (!(check_flag_dir(root_inode.flags))) {
     //     printf("\nRoot direcotry not allocated or not init as a directory! Error!\n");
