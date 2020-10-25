@@ -1,5 +1,12 @@
 # Project Notes
 
+## TODO
+
+- why there is no persistence after the `quit()` operation?
+
+
+## Observations
+
 Disk file convention: `v6fs.disk` -- adding a `.disk` at the end so that I can safely 
 add it to `.gitignore` file for the repo.
 
@@ -36,6 +43,9 @@ and store the blocks in inode's addr using a tmp buffer.
 
 `copy_out`: open the external file in append mode!
 
-
 Implemented but difference in hello.txt and h2.txt!
 Maybe need to write/read using a `char buffer[BLOCK_SIZE]` instead of an `int buffer[]`?
+Not necessary and important!
+
+
+

@@ -36,17 +36,13 @@ typedef struct {
     char fmod;
     unsigned short isize;  // num blocks used for the inodes
     unsigned short fsize;  // total number of blocks in the fs
-    unsigned short nfree;    
+    unsigned short nfree;
     unsigned short time[2];
-    unsigned short ninode;    
+    unsigned short ninode;
     unsigned short inode[I_SIZE];
     unsigned int free[FREE_SIZE];
-    
-} superblock_type;
 
-// Since only 1 super block for the fs, its okay to initialize it here. Used in a lot
-// donwstream functions which assume its a global variable.
-superblock_type superBlock;
+} superblock_type;
 
 // I-Node Structure
 typedef struct {
@@ -66,13 +62,19 @@ typedef struct {
     char filename[14];
 } dir_type;
 
+
+
+// Since only 1 super block for the fs, its okay to initialize it here. Used in a lot
+// donwstream functions which assume its a global variable.
+superblock_type superBlock;
 int fileDescriptor;  //file descriptor for the v6 fs, global variable!
 const unsigned short inode_alloc_flag = 0100000;
 const unsigned short dir_flag = 040000;
 const unsigned short dir_large_file = 010000;
 const unsigned short dir_access_rights = 000777;  // User, Group, & World have all access privileges
 const unsigned short INODE_SIZE = 64;             // inode has been doubled
-unsigned int num_blocks, num_inodes;              // global store
+uint num_blocks, num_inodes;              // global store
+bool DEBUG_FLAG = false;
 
 // Function Prototypes
 int preInitialization();
@@ -88,11 +90,14 @@ int main() {
     char *splitter;
     unsigned int numBlocks = 0, numInodes = 0;
     char *filepath;
-    // printf("Size of super block = %d , size of i-node = %d\n", sizeof(superBlock), sizeof(inode));
-    printf("Size of super block = %ld , size of i-node = %ld\n", sizeof(superblock_type), sizeof(inode_type));
-    printf("Enter command:\n");
+    printf("*********************************\n");
+    printf("* Unix V6 File System Simulation\n"); 
+    printf("* Size of super block = %ld , size of i-node = %ld\n", sizeof(superBlock), sizeof(inode_type));
+    printf("* Available commands are: 1) initfs 2) cpin 3) cpout 4) q\n");
+    printf("\nEnter the required command:\n");
 
     while (1) {
+        printf("ninad@V6FS:$ ");
         scanf(" %[^\n]s", input);
         // breaks down input string using the provided delimiter (here: " ")
         splitter = strtok(input, " ");
@@ -108,9 +113,9 @@ int main() {
             } else {
                 int ret = copy_in(arg1, arg2);
                 if (ret <= 0) {
-                    printf(" Copy In Operation Failed! \n\n");
+                    printf("Copy in operation failed!\n\n");
                 } else {
-                    printf(" Copy In Operation Successful! \n\n");
+                    printf("Copy in operation was successful.\n\n");
                 }
             }
         } else if (strcmp(splitter, "cpout") == 0) {
@@ -121,15 +126,17 @@ int main() {
             } else {
                 int ret = copy_out(arg1, arg2);
                 if (ret <= 0) {
-                    printf(" Copy Out Operation Failed! \n\n");
+                    printf("Copy out operation failed! \n\n");
                 } else {
-                    printf(" Copy Out Operation Successful! \n\n");
+                    printf("Copy out operation successful! \n\n");
                 }
             }
         } else if (strcmp(splitter, "q") == 0) {
-            lseek(fileDescriptor, BLOCK_SIZE, 0);
+            lseek(fileDescriptor, BLOCK_SIZE, SEEK_SET);
             write(fileDescriptor, &superBlock, BLOCK_SIZE);
             close(fileDescriptor);
+            printf("Quitting!\n");
+            printf("***************************\n");
             return 0;
         }
     }
@@ -146,20 +153,20 @@ int preInitialization() {
 
     if (access(filepath, F_OK) != -1) {
         if (fileDescriptor = open(filepath, O_RDWR, 0600) == -1) {
-            printf("\n Filesystem already exists but open() failed with error [%s]\n\n", strerror(errno));
+            printf("Filesystem already exists but open() failed with error [%s]\n\n", strerror(errno));
             return 1;
         }
-        printf("Filesystem already exists and the same will be used.\n");
+        printf("Filesystem already exists and the same will be used.\n\n");
     } else {
         if (!n1 || !n2)
-            printf(" All arguments(path, number of inodes and total number of blocks) have not been entered\n\n");
+            printf("All arguments(path, number of inodes and total number of blocks) have not been entered\n\n");
         else {
             numBlocks = atoi(n1);
             numInodes = atoi(n2);
             if (initfs(filepath, numBlocks, numInodes)) {
-                printf(" The file system is initialized\n\n");
+                printf("The file system is initialized\n\n");
             } else {
-                printf(" Error initializing file system. Exiting... \n\n");
+                printf("Error initializing file system. Exiting...\n\n");
                 return 1;
             }
         }
@@ -185,7 +192,7 @@ int initfs(char *path, unsigned short blocks, unsigned short inodes) {
         superBlock.isize = (inodes / inodes_per_block) + 1;
 
     if ((fileDescriptor = open(path, O_RDWR | O_CREAT, 0700)) == -1) {
-        printf("\n open() failed with the following error [%s]\n", strerror(errno));
+        printf("\nopen() failed with the following error [%s]\n", strerror(errno));
         return 0;
     }
 
@@ -195,18 +202,18 @@ int initfs(char *path, unsigned short blocks, unsigned short inodes) {
     superBlock.nfree = 0;
     superBlock.ninode = I_SIZE;
 
-    // inode num = 1 is reserved for root. 
+    // inode num = 1 is reserved for root.
     for (int i = 0; i < I_SIZE; i++)
         superBlock.inode[i] = i + 1;  //Initializing the inode array to inode numbers
 
     superBlock.flock = 'a';  //flock,ilock and fmode are not used.
     superBlock.ilock = 'b';
-    superBlock.fmod = 'c'; // fmod is also of char type
+    superBlock.fmod = 'c';  // fmod is also of char type
     superBlock.time[0] = 0;
     superBlock.time[1] = 1970;
 
-    lseek(fileDescriptor, 1 * BLOCK_SIZE, SEEK_SET); // since first block!
-    write(fileDescriptor, &superBlock, BLOCK_SIZE);  // writing superblock to file system
+    lseek(fileDescriptor, 1 * BLOCK_SIZE, SEEK_SET);  // since first block!
+    write(fileDescriptor, &superBlock, BLOCK_SIZE);   // writing superblock to file system
 
     // writing zeroes to all inodes in ilist
     for (int i = 0; i < BLOCK_SIZE / 4; i++)
@@ -224,7 +231,6 @@ int initfs(char *path, unsigned short blocks, unsigned short inodes) {
     for (int i = 2 + superBlock.isize + 1; i < data_blocks_for_free_list; i++) {
         add_block_to_free_list(i, buffer);
     }
-
     return 1;
 }
 
@@ -284,25 +290,26 @@ void create_root() {
     // technically the second block overall in the filesystem
     lseek(fileDescriptor, 2 * BLOCK_SIZE, SEEK_SET);
     write(fileDescriptor, &inode, INODE_SIZE);  //
-    
+
     // lseek(fileDescriptor, root_data_block, SEEK_SET);
-    lseek(fileDescriptor, root_data_block * BLOCK_SIZE, SEEK_SET); // this is correct?
+    lseek(fileDescriptor, root_data_block * BLOCK_SIZE, SEEK_SET);  // this is correct?
     // write(fileDescriptor, &root, 16);
     write(fileDescriptor, &root, sizeof(dir_type));
 
     // Write out the entry for ".."
     root.filename[0] = '.';
     root.filename[1] = '.';
-    root.filename[2] = '\0';    
+    root.filename[2] = '\0';
     write(fileDescriptor, &root, sizeof(dir_type));
 }
 
+
 // Get the inode corresponding to the inode number
 inode_type read_inode_from_num(unsigned short inode_num) {
-    unsigned int inodes_per_block = BLOCK_SIZE / INODE_SIZE;    
+    unsigned int inodes_per_block = BLOCK_SIZE / INODE_SIZE;
     unsigned int block_num = (inode_num / inodes_per_block) + 2;
-    unsigned int offset = (inode_num % inodes_per_block) - 1; // after how many inodes
-    // eg. if inum = 1, no offset! first inode on the block    
+    unsigned int offset = (inode_num % inodes_per_block) - 1;  // after how many inodes
+    // eg. if inum = 1, no offset! first inode on the block
     inode_type tmp_inode;
     lseek(fileDescriptor, block_num * BLOCK_SIZE + offset * INODE_SIZE, SEEK_SET);
     read(fileDescriptor, &tmp_inode, INODE_SIZE);
@@ -311,15 +318,15 @@ inode_type read_inode_from_num(unsigned short inode_num) {
 
 // Write the given inode into the num position in inode table i.e as inode with number = inode_num
 void write_inode_num(unsigned short inode_num, inode_type inode) {
-    unsigned int inodes_per_block = BLOCK_SIZE / INODE_SIZE;    
+    unsigned int inodes_per_block = BLOCK_SIZE / INODE_SIZE;
     unsigned int block_num = (inode_num / inodes_per_block) + 2;
-    unsigned int offset = (inode_num % inodes_per_block) - 1; // after how many inodes
+    unsigned int offset = (inode_num % inodes_per_block) - 1;  // after how many inodes
     lseek(fileDescriptor, block_num * BLOCK_SIZE + offset * INODE_SIZE, SEEK_SET);
     write(fileDescriptor, &inode, INODE_SIZE);
 }
 
 // Get the inode_number for a free inode
-unsigned short get_free_inode_num() {
+ushort get_free_inode_num() {
     if (superBlock.ninode == 0) {
         // Iterate through all the inodes and add free ones to the inode[] array.
         // Start from i = 2 since i = 1 is for root.
@@ -337,7 +344,7 @@ unsigned short get_free_inode_num() {
 }
 
 // Get the block_number for a free block.
-unsigned int get_free_block() {
+uint get_free_block() {
     --superBlock.nfree;
     if (superBlock.nfree == 0) {
         unsigned int head_block = superBlock.free[0];
@@ -349,12 +356,24 @@ unsigned int get_free_block() {
     return superBlock.free[superBlock.nfree];
 }
 
-void print_char_buffer(char buffer[], int size){
+// Print out the buffer array for a block
+void print_char_buffer(char buffer[], int size) {
     printf("\n\tPrinting buffer!\n");
-    for(int i=0; i < size; ++i){
+    for (int i = 0; i < size; ++i) {
         printf("%c ", buffer[i]);
     }
     printf("\n");
+}
+
+// Check whether file is the file associated with dir entry
+bool filename_in_direntry(char *file_name, dir_type dir) {
+    return (strcmp(file_name, dir.filename) == 0);
+}
+
+// Check whether the flags satisfy those for: alloc, directory
+bool check_flag_dir(ushort flags) {
+    // should be allocated and a directory!
+    return ((flags & dir_flag) != 0 && (flags & inode_alloc_flag) != 0);
 }
 
 // Copy in external file into a v6 file
@@ -364,7 +383,7 @@ int copy_in(char *external_file, char *v6_filename) {
         printf("\n open() failed with the following error [%s]\n", strerror(errno));
         return -1;
     }
-    // printf("\nOpened the external file.\n");
+    printf("Opened the external file.\n");
 
     unsigned short inode_num = get_free_inode_num();
     inode_type inode = read_inode_from_num(inode_num);
@@ -377,21 +396,21 @@ int copy_in(char *external_file, char *v6_filename) {
     inode.actime[0] = 0;
     inode.modtime[0] = 0;
     inode.modtime[1] = 0;
-    
+
     // Now for the data blocks!
-    char buffer[BLOCK_SIZE] = {0}; // init with zero to avoid garbage value.
+    char buffer[BLOCK_SIZE] = {0};  // init with zero to avoid garbage value.
     int read_flag, block_num;
     unsigned int fsize = 0, idx = 0;  // idx in the addr[] array for the v6 file's inode.
     read_flag = read(extf_descriptor, buffer, BLOCK_SIZE);
     while (read_flag > 0) {  // 0 -> EOF, -1 -> Error.
         // printf("params: %d, %d, %d", read_flag, idx, fsize);
-        // util_print_buffer(buffer, BLOCK_SIZE);
+        // print_char_buffer(buffer, BLOCK_SIZE);
         block_num = get_free_block();
         lseek(fileDescriptor, block_num * BLOCK_SIZE, SEEK_SET);
         write(fileDescriptor, buffer, BLOCK_SIZE);
         inode.addr[idx] = block_num;
         idx += 1;
-        fsize += read_flag; // increment number of bytes read
+        fsize += read_flag;  // increment number of bytes read
         read_flag = read(extf_descriptor, buffer, BLOCK_SIZE);
     }
     inode.size = fsize;
@@ -403,7 +422,7 @@ int copy_in(char *external_file, char *v6_filename) {
     strcpy(v6file.filename, v6_filename);  // v6file.filename := v6_filename;
     const int ROOT_INODE = 1;
     inode_type root_inode = read_inode_from_num(ROOT_INODE);
-    
+
     // Move to appropriate position in root dir's last data block and write out info
     unsigned int bidx_addr = root_inode.size / BLOCK_SIZE;
     unsigned int offset = root_inode.size % BLOCK_SIZE;
@@ -418,21 +437,10 @@ int copy_in(char *external_file, char *v6_filename) {
     lseek(fileDescriptor, root_last_block_num * BLOCK_SIZE + offset, SEEK_SET);
     write(fileDescriptor, &v6file, sizeof(dir_type));
     // update root's inode size and write out inode
-    root_inode.size += sizeof(dir_type); // since one more child addded to root!
+    root_inode.size += sizeof(dir_type);  // since one more child addded to root!
     write_inode_num(ROOT_INODE, root_inode);
-    close(extf_descriptor);    
+    close(extf_descriptor);
     return 1;  // success!
-}
-
-// Check whether file is the file associated with dir entry
-bool filename_in_direntry(char *file_name, dir_type dir) {
-    return (strcmp(file_name, dir.filename) == 0);
-}
-
-// Check whether the flags satisfy those for: alloc, directory
-bool check_flag_dir(u_short flags) {
-    // should be allocated and a directory!
-    return ( (flags & dir_flag) != 0 && (flags & inode_alloc_flag) != 0);
 }
 
 
@@ -440,32 +448,34 @@ bool check_flag_dir(u_short flags) {
 int copy_out(char *v6_file, char *external_file) {
     // Assumes external file does not exist. Otherwise will over-write.
     int extf_descriptor;
-    if ((extf_descriptor = open(external_file, O_WRONLY | O_CREAT , 0700)) == -1) {
-        printf("\n open() failed with the following error [%s]\n", strerror(errno));
+    if ((extf_descriptor = open(external_file, O_WRONLY | O_CREAT, 0700)) == -1) {
+        printf(" open() failed with the following error [%s]\n", strerror(errno));
         return -1;
     }
+
+    printf("Opened the external file.\n");
 
     // Check for v6file in root dir! Read in 16 byte segments of dir_type and compare
     // given v6 filename
     u_int root_inode_num = 1;
     inode_type root_inode = read_inode_from_num(root_inode_num);
-    if (!(check_flag_dir(root_inode.flags))) {
-        printf("\nRoot direcotry not allocated or not init as a directory! Error!\n");
-        return -1;
-    }
+    // if (!(check_flag_dir(root_inode.flags))) {
+    //     printf("\nRoot direcotry not allocated or not init as a directory! Error!\n");
+    //     return -1;
+    // }
     // init to zero. If zero at end, it means file not found in root dir!
     ushort inode_num_v6file = 0;
     dir_type tmp_buffer;
     bool flag_found = false;
-    
+
     for (int i = 0; i < ADDR_SIZE; ++i) {
         if (flag_found) {
             break;
-        }        
+        }
         uint block_num = root_inode.addr[i];
         lseek(fileDescriptor, block_num * BLOCK_SIZE, SEEK_SET);
         uint read_bytes = read(fileDescriptor, &tmp_buffer, sizeof(dir_type));
-        uint count = read_bytes;        
+        uint count = read_bytes;
         while (read_bytes > 0 && count <= BLOCK_SIZE) {
             if (filename_in_direntry(v6_file, tmp_buffer)) {
                 inode_num_v6file = tmp_buffer.inode;  // inode number saved!
@@ -477,7 +487,7 @@ int copy_out(char *v6_file, char *external_file) {
         }
     }
     if (!flag_found) {
-        printf("\nGiven V6 file not found in root directory! Error!\n");
+        printf("Given V6 file not found in root directory! Error!\n");
         return -1;
     }
 
