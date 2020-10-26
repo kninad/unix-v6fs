@@ -11,6 +11,8 @@
  User Input:
      - initfs (file path) (# of total system blocks) (# of System i-nodes)
      - q
+     - cpin (external file path) (v6 file)
+     - cpout (v6 file) (external file path)
 
  File name is limited to 14 characters.
  ***********************************************************************/
@@ -83,7 +85,16 @@ void create_root();
 int copy_in(char *external_file, char *v6_file);
 int copy_out(char *v6_file, char *external_file);
 
-int main() {
+int main(int argc, char *argv) {
+    if (argc != 2) {
+        printf("Please supply the Debug Flag parameter (0 for False, 1 for True)\n");
+        printf("Invalid or no argument, debugging mode off by default\n");
+    } else {
+        printf("One argument passed, debugging mode ON\n");
+        DEBUG_FLAG = true;
+    }    
+    printf("Debugging Flag is %d\n\n", DEBUG_FLAG);
+
     char input[INPUT_SIZE];
     char *splitter;
     unsigned int numBlocks = 0, numInodes = 0;
@@ -383,8 +394,12 @@ int copy_in(char *external_file, char *v6_filename) {
         printf("\n open() failed with the following error [%s]\n", strerror(errno));
         return -1;
     }
-    // printf("Opened the external file.\n");
 
+    if (DEBUG_FLAG) {
+        printf("Opened the external file.\n");
+    }
+
+    // ERROR HERE ON PERSISTENCE!!!
     unsigned short inode_num = get_free_inode_num();
     inode_type inode = read_inode_from_num(inode_num);
 
@@ -397,14 +412,20 @@ int copy_in(char *external_file, char *v6_filename) {
     inode.modtime[0] = 0;
     inode.modtime[1] = 0;
 
+    if (DEBUG_FLAG) {
+        printf("Allocated an I-Node for the file\n");
+    }
+
     // Now for the data blocks!
     char buffer[BLOCK_SIZE] = {0};  // init with zero to avoid garbage value.
     int read_flag, block_num;
     unsigned int fsize = 0, idx = 0;  // idx in the addr[] array for the v6 file's inode.
     read_flag = read(extf_descriptor, buffer, BLOCK_SIZE);
     while (read_flag > 0) {  // 0 -> EOF, -1 -> Error.
-        // printf("params: %d, %d, %d", read_flag, idx, fsize);
-        // print_char_buffer(buffer, BLOCK_SIZE);
+        if (DEBUG_FLAG) {
+            printf("params: %d, %d, %d", read_flag, idx, fsize);
+            print_char_buffer(buffer, BLOCK_SIZE);
+        }
         block_num = get_free_block();
         lseek(fileDescriptor, block_num * BLOCK_SIZE, SEEK_SET);
         write(fileDescriptor, buffer, BLOCK_SIZE);
@@ -413,8 +434,17 @@ int copy_in(char *external_file, char *v6_filename) {
         fsize += read_flag;  // increment number of bytes read
         read_flag = read(extf_descriptor, buffer, BLOCK_SIZE);
     }
+
+    if (DEBUG_FLAG) {
+        printf("Wrote the data to inode blocks");
+    }
+
     inode.size = fsize;
     write_inode_num(inode_num, inode);
+
+    if (DEBUG_FLAG) {
+        printf("Wrote the i-node to the inode-table in num: %d\n", inode_num);
+    }
 
     // Update Root Directory Data Block with v6file info (All files are stored in root)
     dir_type v6file;
@@ -430,7 +460,7 @@ int copy_in(char *external_file, char *v6_filename) {
         ++bidx_addr;
     }
     if (bidx_addr >= ADDR_SIZE) {
-        printf("\n No more space in Root Directory for additional files!, Error! \n");
+        printf("\nNo more space in Root Directory for additional files!, Error! \n");
         return -1;
     }
     unsigned int root_last_block_num = root_inode.addr[bidx_addr];  // < 11?
@@ -452,7 +482,9 @@ int copy_out(char *v6_file, char *external_file) {
         return -1;
     }
 
-    // printf("Opened the external file.\n");
+    if (DEBUG_FLAG) {
+        printf("Opened the external file.\n");
+    }
 
     // Check for v6file in root dir! Read in 16 byte segments of dir_type and compare
     // given v6 filename

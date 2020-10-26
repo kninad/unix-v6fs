@@ -8,7 +8,7 @@ def read_binf(fpath):
 
 
 f1 = './h1.txt'
-f2 = './h2.txt'
+f2 = './h3.txt'
 
 d1 = read_binf(f1)
 d2 = read_binf(f2)
