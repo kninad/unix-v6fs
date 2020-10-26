@@ -226,7 +226,10 @@ int initfs(char *path, unsigned short blocks, unsigned short inodes) {
     // Create root directory
     create_root();
     // an extra +1 at the end since root's data block is already initialized
-    for (int i = 2 + superBlock.isize + 1; i < data_blocks_for_free_list; i++) {
+    // for (int i = 2 + superBlock.isize + 1; i < data_blocks_for_free_list; i++) {
+    //     add_block_to_free_list(i, buffer);
+    // }
+    for (int i = 2 + superBlock.isize + 1; i < blocks; i++) {
         add_block_to_free_list(i, buffer);
     }
     return 1;
