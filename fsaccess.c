@@ -62,8 +62,6 @@ typedef struct {
     char filename[14];
 } dir_type;
 
-
-
 // Since only 1 super block for the fs, its okay to initialize it here. Used in a lot
 // donwstream functions which assume its a global variable.
 superblock_type superBlock;
@@ -73,7 +71,7 @@ const unsigned short dir_flag = 040000;
 const unsigned short dir_large_file = 010000;
 const unsigned short dir_access_rights = 000777;  // User, Group, & World have all access privileges
 const unsigned short INODE_SIZE = 64;             // inode has been doubled
-uint num_blocks, num_inodes;              // global store
+uint num_blocks, num_inodes;                      // global store
 bool DEBUG_FLAG = false;
 
 // Function Prototypes
@@ -91,7 +89,7 @@ int main() {
     unsigned int numBlocks = 0, numInodes = 0;
     char *filepath;
     printf("*********************************\n");
-    printf("* Unix V6 File System Simulation\n"); 
+    printf("* Unix V6 File System Simulation\n");
     printf("* Size of super block = %ld , size of i-node = %ld\n", sizeof(superBlock), sizeof(inode_type));
     printf("* Available commands are: 1) initfs 2) cpin 3) cpout 4) q\n");
     printf("\nEnter the required command:\n");
@@ -128,7 +126,7 @@ int main() {
                 if (ret <= 0) {
                     printf("Copy out operation failed! \n\n");
                 } else {
-                    printf("Copy out operation successful! \n\n");
+                    printf("Copy out operation was successful\n\n");
                 }
             }
         } else if (strcmp(splitter, "q") == 0) {
@@ -152,7 +150,7 @@ int preInitialization() {
     n2 = strtok(NULL, " ");
 
     if (access(filepath, F_OK) != -1) {
-        if (fileDescriptor = open(filepath, O_RDWR, 0600) == -1) {
+        if ((fileDescriptor = open(filepath, O_RDWR, 0600)) == -1) {
             printf("Filesystem already exists but open() failed with error [%s]\n\n", strerror(errno));
             return 1;
         }
@@ -303,7 +301,6 @@ void create_root() {
     write(fileDescriptor, &root, sizeof(dir_type));
 }
 
-
 // Get the inode corresponding to the inode number
 inode_type read_inode_from_num(unsigned short inode_num) {
     unsigned int inodes_per_block = BLOCK_SIZE / INODE_SIZE;
@@ -373,7 +370,7 @@ bool filename_in_direntry(char *file_name, dir_type dir) {
 // Check whether the flags satisfy those for: alloc, directory
 bool check_flag_dir(ushort flags) {
     // should be allocated and a directory!
-    return ((flags & dir_flag) != 0 && (flags & inode_alloc_flag) != 0);
+    return (((flags & dir_flag) != 0) && ((flags & inode_alloc_flag) != 0));
 }
 
 // Copy in external file into a v6 file
@@ -443,12 +440,11 @@ int copy_in(char *external_file, char *v6_filename) {
     return 1;  // success!
 }
 
-
 // Copy out from a v6 file into an external file
 int copy_out(char *v6_file, char *external_file) {
     // Assumes external file does not exist. Otherwise will over-write.
     int extf_descriptor;
-    if ((extf_descriptor = open(external_file, O_WRONLY | O_CREAT | O_APPEND, 0700)) == -1) {
+    if ((extf_descriptor = open(external_file, O_RDWR | O_CREAT | O_APPEND, 0700)) == -1) {
         printf(" open() failed with the following error [%s]\n", strerror(errno));
         return -1;
     }
@@ -459,17 +455,20 @@ int copy_out(char *v6_file, char *external_file) {
     // given v6 filename
     uint root_inode_num = 1;
     inode_type root_inode = read_inode_from_num(root_inode_num);
-    // if (!(check_flag_dir(root_inode.flags))) {
-    //     printf("\nRoot direcotry not allocated or not init as a directory! Error!\n");
-    //     return -1;
-    // }
+    if (!(check_flag_dir(root_inode.flags))) {
+        printf("Root direcotry not allocated or not init as a directory! Error!\n");
+        return -1;
+    } else {
+        printf("Root allocation check passed.\n");
+    }
     // init to zero. If zero at end, it means file not found in root dir!
     ushort inode_num_v6file = 0;
     dir_type tmp_buffer;
     bool flag_found = false;
 
     for (int i = 0; i < ADDR_SIZE; ++i) {
-        if (flag_found) {
+        if (flag_found || root_inode.addr[i] == 0) {
+            // printf("debug: %d, %d\n", flag_found, root_inode.addr[i]);
             break;
         }
         uint block_num = root_inode.addr[i];
@@ -484,6 +483,7 @@ int copy_out(char *v6_file, char *external_file) {
             }
             read_bytes = read(fileDescriptor, &tmp_buffer, sizeof(dir_type));
             count += read_bytes;
+            // printf("debug: %d, %d, %d, %d\n", i, block_num, read_bytes, count);
         }
     }
     if (!flag_found) {
