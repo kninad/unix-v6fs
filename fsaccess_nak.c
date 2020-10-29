@@ -81,6 +81,7 @@ int preInitialization();
 int initfs(char *path, unsigned short total_blcks, unsigned short total_inodes);
 void add_block_to_free_list(int blocknumber, unsigned int *empty_buffer);
 void create_root();
+void print_superblock();
 
 int copy_in(char *external_file, char *v6_file);
 int copy_out(char *v6_file, char *external_file);
@@ -142,7 +143,10 @@ int main(int argc, char *argv) {
             }
         } else if (strcmp(splitter, "q") == 0) {
             lseek(fileDescriptor, BLOCK_SIZE, SEEK_SET);
-            write(fileDescriptor, &superBlock, BLOCK_SIZE);
+            write(fileDescriptor, &superBlock, BLOCK_SIZE);          
+            // if(DEBUG_FLAG){
+            //     print_superblock();
+            // }
             close(fileDescriptor);
             printf("Quitting!\n");
             printf("***************************\n");
@@ -173,6 +177,13 @@ int preInitialization() {
         num_blocks = numBlocks;
         num_inodes = numInodes;
         printf("Filesystem already exists and the same will be used.\n\n");
+        // But we still need to init the superblock from the disk
+        lseek(fileDescriptor, BLOCK_SIZE, SEEK_SET);
+        read(fileDescriptor, &superBlock, sizeof(superBlock));
+        //check if superblock is loaded correctly!
+        // if(DEBUG_FLAG){            
+        //     print_superblock();
+        // }
     } else {
         if (!n1 || !n2)
             printf("All arguments(path, number of inodes and total number of blocks) have not been entered\n\n");
@@ -253,6 +264,7 @@ int initfs(char *path, unsigned short blocks, unsigned short inodes) {
     return 1;
 }
 
+
 // Add Data blocks to free list
 void add_block_to_free_list(int block_number, unsigned int *empty_buffer) {
     if (superBlock.nfree == FREE_SIZE) {
@@ -321,6 +333,17 @@ void create_root() {
     root.filename[2] = '\0';
     write(fileDescriptor, &root, sizeof(dir_type));
 }
+
+// Print the superblock
+void print_superblock() {
+    superblock_type sb;
+    lseek(fileDescriptor, 1 * BLOCK_SIZE, SEEK_SET);
+    read(fileDescriptor, &sb, sizeof(superBlock));
+    printf("\nPrinting Superblock params:\n");
+    printf("isize, fsize, nfree, ninode: %d, %d, %d, %d\n", sb.isize, sb.fsize, sb.nfree, sb.ninode);
+    printf("isize, fsize, nfree, ninode: %d, %d, %d, %d\n", superBlock.isize, superBlock.fsize, superBlock.nfree, superBlock.ninode);
+}
+
 
 // Get the inode corresponding to the inode number
 inode_type read_inode_from_num(unsigned short inode_num) {
