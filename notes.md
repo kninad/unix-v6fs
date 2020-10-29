@@ -47,5 +47,8 @@ Implemented but difference in hello.txt and h2.txt!
 Maybe need to write/read using a `char buffer[BLOCK_SIZE]` instead of an `int buffer[]`?
 Not necessary and important!
 
+Alternatively to only write required number of bytes from the external file, we can
+create a tmp buffer inside the while loop using the `read_bytes` variable.
+
 
 

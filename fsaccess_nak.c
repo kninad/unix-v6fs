@@ -338,13 +338,19 @@ void write_inode_num(unsigned short inode_num, inode_type inode) {
 
 // Get the inode_number for a free inode
 ushort get_free_inode_num() {
+    if(DEBUG_FLAG){
+        printf(" superblock.ninode: %d\n", superBlock.ninode);
+    }
     if (superBlock.ninode == 0) {
         // Iterate through all the inodes and add free ones to the inode[] array.
-        // Start from i = 2 since i = 1 is for root.
+        // Start from i = 2 since inode_num = 1 is for root.
         for (int i = 2; i <= num_inodes, superBlock.ninode <= I_SIZE; ++i) {
             inode_type tmp_inode = read_inode_from_num(i);
             // flags >> 15 is the M.S.B and taking its AND with 1: free or not?
             if ((tmp_inode.flags >> 15) & 1 == 0) {  // Free inode!
+                if(DEBUG_FLAG){
+                    printf(" found free inode: %d\n", i);
+                }
                 superBlock.inode[superBlock.ninode] = i;
                 ++superBlock.ninode;
             }
@@ -491,7 +497,7 @@ int copy_out(char *v6_file, char *external_file) {
     uint root_inode_num = 1;
     inode_type root_inode = read_inode_from_num(root_inode_num);
     if (!(check_flag_dir(root_inode.flags))) {
-        printf("Root direcotry not allocated or not init as a directory! Error!\n");
+        printf("Root directory not allocated or not init as a directory! Error!\n");
         return -1;
     } else {
         printf("Root allocation check passed.\n");
