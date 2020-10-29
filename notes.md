@@ -3,7 +3,8 @@
 ## TODO
 
 - why there is no persistence after the `quit()` operation?
-
+- On init and quitting, and then resuming again, trying to cpin causes a problem. 
+  stuck inside the loop?
 
 ## Observations
 
