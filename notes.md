@@ -1,10 +1,38 @@
 # Project Notes
 
+## Testing
+
+- Basic test: Try the commands like initfs, cpin, cpout, q to have no bugs during the 
+  course of a single run.
+- Persistence: Now just initfs and quit. Then again restart, and try doing cpin, cpout. 
+  This has to check whether the earlier quit makes the changes to filesystem
+  persistence i.e changes are written appropriately? 
+- Can always try interleaving multiple cpin, and cpout commands to different files 
+  and maybe the same file. 
+- Finally, just compare the contents of the two files: h1.txt and h2.txt to have a basic
+  test for cpin and cpout. h1, h2 are sample external files and f1 is a v6 file.
+
+```bash
+# assume initfs already done
+cpin h1.txt f1 # copy into f1
+cpout f1 h2.txt # copy f1 into h2.txt
+q
+
+# Now use the diff command line tool or difffile.py to test the difference
+diff h1.txt h2.txt
+```
+
+
 ## TODO
 
-- why there is no persistence after the `quit()` operation?
+- why there is no persistence after the `quit()` operation? -- **FIXED**
 - On init and quitting, and then resuming again, trying to cpin causes a problem. 
-  stuck inside the loop?
+  stuck inside the loop? -- **FIXED**
+- During cpin, can we make the v6file such that we only write the amount of bytes read 
+  from the external file instead of writing 1024 bytes at a time i.e writing one block
+  at a time. This will ensure 
+
+
 
 ## Observations
 
