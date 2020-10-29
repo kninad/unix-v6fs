@@ -87,14 +87,16 @@ int copy_in(char *external_file, char *v6_file);
 int copy_out(char *v6_file, char *external_file);
 
 int main(int argc, char *argv) {
-    if (argc != 2) {
-        printf("Please supply the Debug Flag parameter (0 for False, 1 for True)\n");
-        printf("Invalid or no argument, debugging mode off by default\n");
+    if (argc < 2) {
+        printf("Debug Flag parameter not supplied.\n");
+        printf("Hence print based Debugging mode OFF by default\n");
     } else {
-        printf("One argument passed, debugging mode ON\n");
+        // Set the flag to true if (any) one argument is passed -- for simplicity not 
+        // checking whether zero or one.
+        printf("Since (any) one argument passed, debugging mode is set to: ON\n");
         DEBUG_FLAG = true;
     }    
-    printf("Debugging Flag is %d\n\n", DEBUG_FLAG);
+    printf("Debugging Flag is set to: %d\n\n", DEBUG_FLAG);
 
     char input[INPUT_SIZE];
     char *splitter;
@@ -169,21 +171,19 @@ int preInitialization() {
             printf("Filesystem already exists but open() failed with error [%s]\n\n", strerror(errno));
             return 1;
         }
-        // Still need to set the global variables!
+        // Still need to set the global variables! Otherwise these are never set!
+        // Kind of Terrible hack, I know!
         numBlocks = atoi(n1);
         numInodes = atoi(n2);
-        // Terrible hack, I know!
-        // Otherwise, these global variables are never set!
         num_blocks = numBlocks;
         num_inodes = numInodes;
         printf("Filesystem already exists and the same will be used.\n\n");
         // But we still need to init the superblock from the disk
         lseek(fileDescriptor, BLOCK_SIZE, SEEK_SET);
-        read(fileDescriptor, &superBlock, sizeof(superBlock));
-        //check if superblock is loaded correctly!
-        // if(DEBUG_FLAG){            
-        //     print_superblock();
-        // }
+        read(fileDescriptor, &superBlock, sizeof(superBlock));        
+        if(DEBUG_FLAG){  //check if superblock is loaded correctly!
+            print_superblock();
+        }
     } else {
         if (!n1 || !n2)
             printf("All arguments(path, number of inodes and total number of blocks) have not been entered\n\n");
@@ -340,8 +340,8 @@ void print_superblock() {
     lseek(fileDescriptor, 1 * BLOCK_SIZE, SEEK_SET);
     read(fileDescriptor, &sb, sizeof(superBlock));
     printf("\nPrinting Superblock params:\n");
-    printf("isize, fsize, nfree, ninode: %d, %d, %d, %d\n", sb.isize, sb.fsize, sb.nfree, sb.ninode);
-    printf("isize, fsize, nfree, ninode: %d, %d, %d, %d\n", superBlock.isize, superBlock.fsize, superBlock.nfree, superBlock.ninode);
+    printf("sb: isize, fsize, nfree, ninode: %d, %d, %d, %d\n", sb.isize, sb.fsize, sb.nfree, sb.ninode);
+    printf("sB: isize, fsize, nfree, ninode: %d, %d, %d, %d\n", superBlock.isize, superBlock.fsize, superBlock.nfree, superBlock.ninode);
 }
 
 
@@ -389,9 +389,10 @@ ushort get_free_inode_num() {
                 ++superBlock.ninode;
             }
         }
-        --superBlock.ninode;
-        return superBlock.inode[superBlock.ninode];
     }
+    // Now, sb.ninode > 0. Can safely do the following.
+    --superBlock.ninode;
+    return superBlock.inode[superBlock.ninode];
 }
 
 // Get the block_number for a free block.
@@ -453,7 +454,7 @@ int copy_in(char *external_file, char *v6_filename) {
     inode.modtime[1] = 0;
 
     if (DEBUG_FLAG) {
-        printf("Allocated an I-Node for the file\n");
+        printf("Allocated an I-Node for the file: %d\n", inode_num);
     }
 
     // Now for the data blocks!
@@ -476,7 +477,7 @@ int copy_in(char *external_file, char *v6_filename) {
     }
 
     if (DEBUG_FLAG) {
-        printf("Wrote the data to inode blocks");
+        printf("Wrote the data to data-blocks for the assigned inode.\n");
     }
 
     inode.size = fsize;
