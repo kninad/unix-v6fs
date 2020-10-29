@@ -165,6 +165,13 @@ int preInitialization() {
             printf("Filesystem already exists but open() failed with error [%s]\n\n", strerror(errno));
             return 1;
         }
+        // Still need to set the global variables!
+        numBlocks = atoi(n1);
+        numInodes = atoi(n2);
+        // Terrible hack, I know!
+        // Otherwise, these global variables are never set!
+        num_blocks = numBlocks;
+        num_inodes = numInodes;
         printf("Filesystem already exists and the same will be used.\n\n");
     } else {
         if (!n1 || !n2)
@@ -344,9 +351,13 @@ ushort get_free_inode_num() {
     if (superBlock.ninode == 0) {
         // Iterate through all the inodes and add free ones to the inode[] array.
         // Start from i = 2 since inode_num = 1 is for root.
-        for (int i = 2; i <= num_inodes, superBlock.ninode <= I_SIZE; ++i) {
+        for (int i = 2; i <= num_inodes && superBlock.ninode <= I_SIZE; ++i) {
             inode_type tmp_inode = read_inode_from_num(i);
+            if(DEBUG_FLAG){
+                printf(" found an inode: %d ; ", i);
+            }
             // flags >> 15 is the M.S.B and taking its AND with 1: free or not?
+            // It seems this check is not working!
             if ((tmp_inode.flags >> 15) & 1 == 0) {  // Free inode!
                 if(DEBUG_FLAG){
                     printf(" found free inode: %d\n", i);
