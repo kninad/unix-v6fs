@@ -30,7 +30,8 @@ diff h1.txt h2.txt
   stuck inside the loop? -- **FIXED**
 - During cpin, can we make the v6file such that we only write the amount of bytes read 
   from the external file instead of writing 1024 bytes at a time i.e writing one block
-  at a time. This will ensure 
+  at a time. This will ensure only required bytes are written -- **NOT NECESSARY**
+  Can implement this later as a follow up project!
 
 
 
