@@ -454,6 +454,7 @@ bool check_flag_dir(unsigned short flags) {
 
 // Copy in external file into a v6 file
 int copy_in(char *external_file, char *v6_filename) {
+    printf("This will over-write any existing v6 file!\n");
     int extf_descriptor;
     if ((extf_descriptor = open(external_file, O_RDONLY, 0700)) == -1) {
         printf("\n open() failed with the following error [%s]\n", strerror(errno));
@@ -465,7 +466,12 @@ int copy_in(char *external_file, char *v6_filename) {
     }
     
     unsigned short inode_num = get_free_inode_num();
-    inode_type inode = read_inode_from_num(inode_num);
+    if (inode_num < 2){
+        printf("Could not allocate inode for file\n");
+        return -1;
+    }
+    // inode_type inode = read_inode_from_num(inode_num);
+    inode_type inode;
 
     inode.flags = inode_alloc_flag | dir_access_rights;  // set flags
     inode.nlinks = 0;
