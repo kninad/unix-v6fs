@@ -159,9 +159,21 @@ int main(int argc, char *argv) {
                 if (ret <= 0) {
                     printf("Copy out operation failed! \n\n");
                 } else {
-                    printf("Copy out operation was successful\n\n");
+                    printf("Copy out operation was successful.\n\n");
                 }
             }
+        } else if (strcmp(splitter, "q") == 0) {
+            lseek(fileDescriptor, BLOCK_SIZE, SEEK_SET);
+            write(fileDescriptor, &superBlock, BLOCK_SIZE);          
+            // if(DEBUG_FLAG){
+            //     print_superblock();
+            // }
+            close(fileDescriptor);
+            printf("Quitting!\n");
+            printf("***************************\n");
+            return 0;
+        } else {
+            printf("Please provide a valid command!\n\n");
         } 
     } // end while loop
 } // end main
