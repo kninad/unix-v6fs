@@ -1,6 +1,7 @@
 # Project Notes
 
-## Testing
+Testing
+-------
 
 - Basic test: Try the commands like initfs, cpin, cpout, q to have no bugs during the 
   course of a single run.
@@ -23,19 +24,69 @@ diff h1.txt h2.txt
 ```
 
 
-## TODO
+TODO
+----
 
-- why there is no persistence after the `quit()` operation? -- **FIXED**
-- On init and quitting, and then resuming again, trying to cpin causes a problem. 
-  stuck inside the loop? -- **FIXED**
+- In the terminal prompt have the current path (or pwd) before the terminal `$` sign 
+  just for the extra aesthetics. 
+
 - During cpin, can we make the v6file such that we only write the amount of bytes read 
   from the external file instead of writing 1024 bytes at a time i.e writing one block
   at a time. This will ensure only required bytes are written -- **NOT NECESSARY**
-  Can implement this later as a follow up project!
+  (Can implement this later as a follow up project!)
 
 
 
-## Observations
+Observations and Notes
+----------------------
+
+### Part 2
+
+Need to have a concept of `pwd` for cd, mkdir, rm, cpout. If the provided v6-file is
+not present in the pwd or through the absolute path, we should throw an error! For cpin, 
+we must provide a warning that a file already exists and **will** be over-written!
+pwd in the code will be a variable of type `dir_type`: containing the inode (number) for 
+it and the name (`char* filename`). So whenever we do a `cd` operation, we should update
+the pwd.
+
+So I need a Func:: to get me the inode, etc details about a file/dir given its path 
+(relative or absolute). This will be used multiple times across different commands. And
+should throw an error message if not found!
+If the file path begins with "/" then its an absolute path, otherwise its a relative path.
+
+Will also need a function Func:: to check the validity of provided path -- either relative
+or absolute. Return -1 if not valid! or bool false. 
+
+For relative path, use the pwd inode and iterate through it :: another function!
+Func:: Checking whether a file exists in the pwd -- iterate through the pwd inode's 
+data blocks one `dir_entry` buffer at a time and try a match with the filename using
+the `filename_in_direntry` function (maybe a bit badly-named?).
+
+For absolute path eg, `/usr/ninad/f1`, need to break up the slashes and starting from
+root inode, go into the subdirs to find the `dir_entry` associated with the file `f1`.
+In this functio, Func:: have a concept of parent and child? Using strtok (to split up)?
+Will have to write to understand better and later on can make the commonly used code into
+functions.
+
+**rm**: it is only for plain file in the pwd. Its not for dir. So check for that.
+- Check if plain file and it exists in the pwd (if provided a relative path) or in the 
+  absolute path provided.
+- Then free up the inode number (by setting appropriate flags) for that file
+- Free up the data associated data blocks for it -- by over-writing it with zero
+- Free up the data blocks (from the given number) by adding them to free list?
+- Remove the associated `dir_entry`.
+- Only small files btw. Note it will be kind of reverse for cpin.
+
+**mkdir**: Should have two entries for "." and ".."
+
+**cd**: It should be able to work with "." and "..". The file path provided can be 
+relative or absolute!
+
+**cpin, cpout**: Should work with relative and absolute file paths.
+
+
+
+### Part 1
 
 Disk file convention: `v6fs.disk` -- adding a `.disk` at the end so that I can safely 
 add it to `.gitignore` file for the repo.
@@ -79,6 +130,4 @@ Not necessary and important!
 
 Alternatively to only write required number of bytes from the external file, we can
 create a tmp buffer inside the while loop using the `read_bytes` variable.
-
-
 

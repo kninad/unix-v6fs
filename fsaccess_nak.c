@@ -454,6 +454,15 @@ bool check_flag_dir(unsigned short flags) {
 }
 
 
+// Check whether the provided inode flags correspond to a plain file. 
+bool is_plain_file(unsigned short flags) {
+    bool is_file = (flags & inode_alloc_flag != 0);
+    bool is_dir = (flags & dir_flag != 0);
+    bool ans = is_file && !(is_dir); // allocated as file and not dir => plain file!
+    return ans;
+}
+
+
 // Copy in external file into a v6 file
 int copy_in(char *external_file, char *v6_filename) {
     printf("This will over-write any existing v6 file!\n");
@@ -489,7 +498,7 @@ int copy_in(char *external_file, char *v6_filename) {
     // Now for the data blocks!
     char buffer[BLOCK_SIZE] = {0};  // init with zero to avoid garbage value.
     int read_flag, block_num;
-    unsigned int fsize = 0, idx = 0;  // idx in the addr[] array for the v6 file's inode.
+    unsigned int fsize = 0, idx = 0;  // idx is for the addr[] array for the v6 file's inode.
     read_flag = read(extf_descriptor, buffer, BLOCK_SIZE);
     while (read_flag > 0) {  // 0 -> EOF, -1 -> Error.
         if (DEBUG_FLAG) {
@@ -614,6 +623,40 @@ int copy_out(char *v6_file, char *external_file) {
     }
     close(extf_descriptor);
     return 1;
+}
+
+
+void print_path(char* v6_file){
+    if(v6_file[0] == '/'){
+        printf("Abosulte File Path!!!\n");
+    } else {
+        printf("Error!\n");
+    }    
+
+    char* token = strtok(v6_file, "/");
+    while(token != NULL) {
+        printf("%s\n", token);
+        token = strtok(NULL, '/');
+    }
+
+
+    // NOT VALID, implement using strtok.
+    int len = strlen(v6_file);
+    // starting from 1 since 0 is already `/` char.
+    char* curr = 'd'; // d is a dummy char
+    for(int i=1; i < len; ++i){
+        if(v6_file[i] != '/'){
+            strcat(curr, v6_file[i]);
+        } else {
+            curr = 'd';
+        }
+    }
+}
+
+
+
+int remove_file(char* v6_file){
+    return 0;    
 }
 
 
