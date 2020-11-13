@@ -42,6 +42,8 @@ Observations and Notes
 
 ### Part 2
 
+Fix cpin and cpout first! using fsize?
+
 Need to have a concept of `pwd` for cd, mkdir, rm, cpout. If the provided v6-file is
 not present in the pwd or through the absolute path, we should throw an error! For cpin, 
 we must provide a warning that a file already exists and **will** be over-written!
