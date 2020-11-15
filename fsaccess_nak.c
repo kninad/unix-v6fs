@@ -511,13 +511,15 @@ int copy_in(char *external_file, char *v6_filename) {
         inode.addr[idx] = block_num;
         idx += 1;
         fsize += read_flag;  // increment number of bytes read
+        // over-write the buffer!
         read_flag = read(extf_descriptor, buffer, BLOCK_SIZE);
     }
 
     if (DEBUG_FLAG) {
         printf("Wrote the data to data-blocks for the assigned inode.\n");
+        printf("The file size is: %d\n", fsize);
     }
-
+    // Set the internal file size, even though its written one block at a time!
     inode.size = fsize;
     write_inode_num(inode_num, inode);
 
@@ -609,17 +611,27 @@ int copy_out(char *v6_file, char *external_file) {
 
     // Now using the inode, write out contents to external file
     inode_type inode_v6file = read_inode_from_num(inode_num_v6file);
-    lseek(extf_descriptor, 0, SEEK_SET);  // move to very beginning of external file
+    int rem_fsize = inode_v6file.size; // It will decrement with each write operation.
     char buffer[BLOCK_SIZE] = {0};
+    lseek(extf_descriptor, 0, SEEK_SET);  // move to very beginning of external file
     for (int i = 0; i < ADDR_SIZE; ++i) {
         unsigned int curr_block_num = inode_v6file.addr[i];
-        if (curr_block_num == 0) {  // go no further!
+        if (curr_block_num == 0 || rem_fsize <= 0) {  // go no further!
             break;
+        }
+        int bytes_to_write = 0;
+        // If remaining file size is greater than a block size
+        // we write out the entire block, Else we just write the remaining fsize.
+        if (rem_fsize > BLOCK_SIZE) {
+            bytes_to_write = BLOCK_SIZE;
+        } else {
+            bytes_to_write = rem_fsize;
         }
         lseek(fileDescriptor, curr_block_num * BLOCK_SIZE, SEEK_SET);
         // print_char_buffer(buffer, BLOCK_SIZE);
         read(fileDescriptor, buffer, BLOCK_SIZE);
-        write(extf_descriptor, buffer, BLOCK_SIZE);
+        write(extf_descriptor, buffer, bytes_to_write);
+        rem_fsize -= bytes_to_write;
     }
     close(extf_descriptor);
     return 1;
@@ -656,6 +668,7 @@ void print_path(char* v6_file){
 
 
 int remove_file(char* v6_file){
+    // TODO: Implement it!
     return 0;    
 }
 
