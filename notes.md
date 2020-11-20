@@ -28,13 +28,14 @@ TODO
 ----
 
 - In the terminal prompt have the current path (or pwd) before the terminal `$` sign 
-  just for the extra aesthetics. 
+  just for the extra aesthetics. -- **DONE**
 
 - During cpin, can we make the v6file such that we only write the amount of bytes read 
   from the external file instead of writing 1024 bytes at a time i.e writing one block
-  at a time. This will ensure only required bytes are written -- **REQUIRED**
-  (Can implement this later as a follow up project!)
-
+  at a time. This will ensure only required bytes are written -- **DONE**
+  
+- Print error messages and warnings for every kind of user exceptions. Example: if the
+filename is greater than 14 chars etc.
 
 
 Observations and Notes
@@ -42,22 +43,24 @@ Observations and Notes
 
 ### Part 2
 
-Fix cpin and cpout first! using fsize?
+First, I need to implement a String Slicing algorithm? Or use strtok? Need to get this
+right since it will be used again and again.
 
 Need to have a concept of `pwd` for cd, mkdir, rm, cpout. If the provided v6-file is
-not present in the pwd or through the absolute path, we should throw an error! For cpin, 
-we must provide a warning that a file already exists and **will** be over-written!
+not present in the pwd or through the absolute path, we should throw an error! 
+
 pwd in the code will be a variable of type `dir_type`: containing the inode (number) for 
 it and the name (`char* filename`). So whenever we do a `cd` operation, we should update
-the pwd.
+the pwd. Init pwd will be root! There will two variables: `pwd_path, pwd_inode`.
 
 So I need a Func:: to get me the inode, etc details about a file/dir given its path 
 (relative or absolute). This will be used multiple times across different commands. And
 should throw an error message if not found!
-If the file path begins with "/" then its an absolute path, otherwise its a relative path.
 
 Will also need a function Func:: to check the validity of provided path -- either relative
-or absolute. Return -1 if not valid! or bool false. 
+or absolute. Return -1 if not valid! or bool false. Also a simple function to check whether
+a path is absolute or relative -- just need to check if it starts with "/" -- absolute
+otherwise its a relative path and should check in the pwd.
 
 For relative path, use the pwd inode and iterate through it :: another function!
 Func:: Checking whether a file exists in the pwd -- iterate through the pwd inode's 
@@ -78,13 +81,19 @@ functions.
 - Free up the data blocks (from the given number) by adding them to free list?
 - Remove the associated `dir_entry`.
 - Only small files btw. Note it will be kind of reverse for cpin.
+- If the directory is empty, then delete it.
 
-**mkdir**: Should have two entries for "." and ".."
+**mkdir**: Should have two entries for "." and "..". Will make a new entry in the pwd
+file's (dir) inode for the new directory entry. Should not allow if the some parent dir
+of the final dir does not exist. Need to implement a function to check whether a given
+path is VALID i.e its dir entries exist.
 
 **cd**: It should be able to work with "." and "..". The file path provided can be 
-relative or absolute!
+relative or absolute! If it does not start with "/" then it is a relative path.
 
-**cpin, cpout**: Should work with relative and absolute file paths.
+**cpin, cpout**: Should work with relative and absolute file paths. Check for the existence
+of the basedir -- using `dirname()` : if not ERROR. Create a new entry in this. Else if
+just a file name is given, then create an entry in the pwd.
 
 
 

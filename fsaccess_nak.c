@@ -37,6 +37,7 @@
 #define BLOCK_SIZE 1024
 #define ADDR_SIZE 11
 #define INPUT_SIZE 256
+#define MAX_F_LEN 80 // 80 = 14 * 5 + 10 (extra space). Assuming max 5 levels deep.
 
 // Superblock Structure
 typedef struct {
@@ -71,7 +72,6 @@ typedef struct {
     char filename[14];
 } dir_type;
 
-
 // Since only 1 super block for the fs, its okay to initialize it here. Used in a lot
 // donwstream functions which assume its a global variable.
 superblock_type superBlock;
@@ -83,7 +83,10 @@ const unsigned short dir_access_rights = 000777;  // User, Group, & World have a
 const unsigned short INODE_SIZE = 64;             // inode has been doubled
 unsigned int num_blocks, num_inodes;              // globally stored!
 
-bool DEBUG_FLAG = false; // whether to enable print based debugging?
+bool DEBUG_FLAG = false;  // whether to enable print based debugging?
+// Present working directory (pwd) variables
+char pwd_path[MAX_F_LEN];  
+unsigned short pwd_inode; // current inode number 
 
 // Function Prototypes
 int preInitialization();
@@ -99,9 +102,14 @@ unsigned short get_free_inode_num();
 unsigned int get_free_block();
 bool filename_in_direntry(char *file_name, dir_type dir);
 bool check_flag_dir(unsigned short flags);
+int valid_path(char* path);
+
 
 int copy_in(char *external_file, char *v6_file);
 int copy_out(char *v6_file, char *external_file);
+int remove_file(char* path);
+int make_dir(char* path);
+int change_dir(char* path);
 
 
 int main(int argc, char *argv) {
@@ -109,11 +117,11 @@ int main(int argc, char *argv) {
         printf("Debug Flag parameter not supplied.\n");
         printf("Hence print based Debugging mode OFF by default\n");
     } else {
-        // Set the flag to true if (any) one argument is passed -- for simplicity not 
+        // Set the flag to true if (any) one argument is passed -- for simplicity not
         // checking whether zero or one.
         printf("Since (any) one argument passed, debugging mode is set to: ON\n");
         DEBUG_FLAG = true;
-    }    
+    }
     printf("Debugging Flag is set to: %d\n\n", DEBUG_FLAG);
 
     char input[INPUT_SIZE];
@@ -128,7 +136,7 @@ int main(int argc, char *argv) {
     printf("\nEnter the required command:\n");
 
     while (1) {
-        printf("ninad@V6FS:$ ");
+        printf("ninad@V6FS:%s $ ", pwd_path);
         scanf(" %[^\n]s", input);
         // breaks down input string using the provided delimiter (here: " ")
         splitter = strtok(input, " ");
@@ -164,7 +172,7 @@ int main(int argc, char *argv) {
             }
         } else if (strcmp(splitter, "q") == 0) {
             lseek(fileDescriptor, BLOCK_SIZE, SEEK_SET);
-            write(fileDescriptor, &superBlock, BLOCK_SIZE);          
+            write(fileDescriptor, &superBlock, BLOCK_SIZE);
             // if(DEBUG_FLAG){
             //     print_superblock();
             // }
@@ -174,10 +182,9 @@ int main(int argc, char *argv) {
             return 0;
         } else {
             printf("Please provide a valid command!\n\n");
-        } 
-    } // end while loop
-} // end main
-
+        }
+    }  // end while loop
+}  // end main
 
 // Function Definitions begin here
 // Pre-init code -- incase file system already exists: set vals for appropriate variables.
@@ -204,10 +211,12 @@ int preInitialization() {
         printf("Filesystem already exists and the same will be used.\n\n");
         // But we still need to init the superblock from the disk
         lseek(fileDescriptor, BLOCK_SIZE, SEEK_SET);
-        read(fileDescriptor, &superBlock, sizeof(superBlock));        
-        if(DEBUG_FLAG){  //check if superblock is loaded correctly!
+        read(fileDescriptor, &superBlock, sizeof(superBlock));
+        if (DEBUG_FLAG) {  //check if superblock is loaded correctly!
             print_superblock();
-        }
+        }        
+        strcpy(pwd_path, "/"); // pwd is root at the beginning
+        pwd_inode = 1;
     } else {
         if (!n1 || !n2)
             printf("All arguments(path, number of inodes and total number of blocks) have not been entered\n\n");
@@ -224,8 +233,7 @@ int preInitialization() {
     }
 }
 
-
-int initfs(char *path, unsigned short blocks, unsigned short inodes) {    
+int initfs(char *path, unsigned short blocks, unsigned short inodes) {
     unsigned int buffer[BLOCK_SIZE / 4];
     int bytes_written;
 
@@ -277,7 +285,11 @@ int initfs(char *path, unsigned short blocks, unsigned short inodes) {
     int data_blocks_for_free_list = data_blocks - 1;
 
     // Create root directory
+    // pwd is root at the beginning
     create_root();
+    // pwd_path[0] = "/"; 
+    strcpy(pwd_path, "/");
+    pwd_inode = 1;
     // blocks are zero-addressed!
     for (int i = 2 + superBlock.isize + 1; i < blocks; i++) {
         add_block_to_free_list(i, buffer);
@@ -311,7 +323,6 @@ void add_block_to_free_list(int block_number, unsigned int *empty_buffer) {
     ++superBlock.nfree;
 }
 
-
 // Create root directory
 void create_root() {
     dir_type root;                               // data block for the root directory
@@ -342,8 +353,8 @@ void create_root() {
     // technically the second block overall in the filesystem
     lseek(fileDescriptor, 2 * BLOCK_SIZE, SEEK_SET);
     write(fileDescriptor, &inode, INODE_SIZE);  //
-    
-    lseek(fileDescriptor, root_data_block * BLOCK_SIZE, SEEK_SET);  // this is correct?    
+
+    lseek(fileDescriptor, root_data_block * BLOCK_SIZE, SEEK_SET);  // this is correct?
     write(fileDescriptor, &root, sizeof(dir_type));
 
     // Write out the entry for ".."
@@ -352,7 +363,6 @@ void create_root() {
     root.filename[2] = '\0';
     write(fileDescriptor, &root, sizeof(dir_type));
 }
-
 
 // Print some of the superblock params: isize, fsize, nfree, ninode. Used for debugging.
 void print_superblock() {
@@ -364,7 +374,6 @@ void print_superblock() {
     printf("sB global var: isize, fsize, nfree, ninode: %d, %d, %d, %d\n", superBlock.isize, superBlock.fsize, superBlock.nfree, superBlock.ninode);
 }
 
-
 // Print out the buffer array for a block: Used for debugging.
 void print_char_buffer(char buffer[], int size) {
     printf("\n\tPrinting buffer!\n");
@@ -373,7 +382,6 @@ void print_char_buffer(char buffer[], int size) {
     }
     printf("\n");
 }
-
 
 // Get the inode_type struct corresponding to the given inode number
 inode_type read_inode_from_num(unsigned short inode_num) {
@@ -398,7 +406,7 @@ void write_inode_num(unsigned short inode_num, inode_type inode) {
 
 // Get a free inode number
 unsigned short get_free_inode_num() {
-    if(DEBUG_FLAG){
+    if (DEBUG_FLAG) {
         printf(" superblock.ninode: %d\n", superBlock.ninode);
     }
     if (superBlock.ninode == 0) {
@@ -406,14 +414,14 @@ unsigned short get_free_inode_num() {
         // Start from i = 2 since inode_num = 1 is for root.
         for (int i = 2; i <= num_inodes && superBlock.ninode <= I_SIZE; ++i) {
             inode_type tmp_inode = read_inode_from_num(i);
-            if(DEBUG_FLAG){
+            if (DEBUG_FLAG) {
                 printf(" found an inode: %d ; ", i);
             }
             // flags >> 15 is the M.S.B and taking its AND with 1: free or not?
-            int bits_flags = sizeof(short) * 8; // number of bits for flags type
-            int mask = 1 << (bits_flags - 1); // bitwise: 1 followed by 15 zeros.
+            int bits_flags = sizeof(short) * 8;   // number of bits for flags type
+            int mask = 1 << (bits_flags - 1);     // bitwise: 1 followed by 15 zeros.
             if ((tmp_inode.flags & mask) == 0) {  // Free inode!
-                if(DEBUG_FLAG){
+                if (DEBUG_FLAG) {
                     printf(" found a free inode: %d\n", i);
                 }
                 superBlock.inode[superBlock.ninode] = i;
@@ -425,7 +433,6 @@ unsigned short get_free_inode_num() {
     --superBlock.ninode;
     return superBlock.inode[superBlock.ninode];
 }
-
 
 // Get a free block number.
 unsigned int get_free_block() {
@@ -440,12 +447,10 @@ unsigned int get_free_block() {
     return superBlock.free[superBlock.nfree];
 }
 
-
 // Check whether file_name is the file associated with given  dir_entry dir
 bool filename_in_direntry(char *file_name, dir_type dir) {
     return (strcmp(file_name, dir.filename) == 0);
 }
-
 
 // Check whether the flags satisfy those for: allocated and a directory
 bool check_flag_dir(unsigned short flags) {
@@ -453,12 +458,11 @@ bool check_flag_dir(unsigned short flags) {
     return (((flags & dir_flag) != 0) && ((flags & inode_alloc_flag) != 0));
 }
 
-
-// Check whether the provided inode flags correspond to a plain file. 
+// Check whether the provided inode flags correspond to a plain file.
 bool is_plain_file(unsigned short flags) {
     bool is_file = (flags & inode_alloc_flag != 0);
     bool is_dir = (flags & dir_flag != 0);
-    bool ans = is_file && !(is_dir); // allocated as file and not dir => plain file!
+    bool ans = is_file && !(is_dir);  // allocated as file and not dir => plain file!
     return ans;
 }
 
@@ -468,19 +472,25 @@ int copy_in(char *external_file, char *v6_filename) {
     printf("This will over-write any existing v6 file!\n");
     int extf_descriptor;
     if ((extf_descriptor = open(external_file, O_RDONLY, 0700)) == -1) {
-        printf("\n open() failed with the following error [%s]\n", strerror(errno));
+        printf("\n[Error] open() for External File failed with the following error [%s]\n", strerror(errno));
         return -1;
     }
+
+    if (strlen(v6_filename) > 14){
+        printf("\n[Error] filename should be below 14 characters!\n");
+        return -1;
+    }
+
     if (DEBUG_FLAG) {
         printf("Opened the external file.\n");
     }
-    
+
     unsigned short inode_num = get_free_inode_num();
-    if (inode_num < 2){
+    if (inode_num < 2) {
         printf("Could not allocate inode for file. Error!\n");
         return -1;
     }
-    
+
     inode_type inode;
     inode.flags = inode_alloc_flag | dir_access_rights;  // set flags
     inode.nlinks = 0;
@@ -611,7 +621,7 @@ int copy_out(char *v6_file, char *external_file) {
 
     // Now using the inode, write out contents to external file
     inode_type inode_v6file = read_inode_from_num(inode_num_v6file);
-    int rem_fsize = inode_v6file.size; // It will decrement with each write operation.
+    int rem_fsize = inode_v6file.size;  // It will decrement with each write operation.
     char buffer[BLOCK_SIZE] = {0};
     lseek(extf_descriptor, 0, SEEK_SET);  // move to very beginning of external file
     for (int i = 0; i < ADDR_SIZE; ++i) {
@@ -638,38 +648,53 @@ int copy_out(char *v6_file, char *external_file) {
 }
 
 
-void print_path(char* v6_file){
-    if(v6_file[0] == '/'){
-        printf("Abosulte File Path!!!\n");
-    } else {
-        printf("Error!\n");
-    }    
-
-    char* token = strtok(v6_file, "/");
-    while(token != NULL) {
-        printf("%s\n", token);
-        token = strtok(NULL, '/');
-    }
-
-
-    // NOT VALID, implement using strtok.
-    int len = strlen(v6_file);
-    // starting from 1 since 0 is already `/` char.
-    char* curr = 'd'; // d is a dummy char
-    for(int i=1; i < len; ++i){
-        if(v6_file[i] != '/'){
-            strcat(curr, v6_file[i]);
-        } else {
-            curr = 'd';
+bool double_slash_in_path(char* path) {    
+    char prev = path[0];
+    for(int i = 1; i < strlen(path); ++i){
+        if(path[i] == prev && prev == '/'){
+            // printf("Invalid path!\n");
+            return true;
         }
+        prev = path[i];
     }
+    return false;
 }
 
+// Should return the inode number if found, else -1
+int check_dir_exists(char* dirname, int basedir_inode_num) {
+    inode_type basedir = read_inode_from_num(basedir_inode_num);
+    // Read in the data: directory entries for this base dir
+    for(int i=0; i<ADDR_SIZE; ++i){
+        
+    }
+    return 0;
+}
+
+int valid_path(char* path){
+    if (strlen(path) > MAX_F_LEN){
+        printf(" Error: File path too long! Should be under: %d\n", MAX_F_LEN);
+        return -1;
+    }
+
+    if (double_slash_in_path(path)){
+        printf(" Error: File path invalid! Should not contain consecutive \\ char.\n");
+        return -2;
+    }
 
 
-int remove_file(char* v6_file){
+}
+
+int remove_file(char *v6_file) {
     // TODO: Implement it!
-    return 0;    
+    return 0;
 }
 
+int change_dir(char *path) {
+    // TODO
+    return 0;
+}
 
+int make_dir(char *path) {
+    // TODO
+    return 0;
+}
