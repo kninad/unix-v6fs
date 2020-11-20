@@ -88,6 +88,14 @@ file's (dir) inode for the new directory entry. Should not allow if the some par
 of the final dir does not exist. Need to implement a function to check whether a given
 path is VALID i.e its dir entries exist.
 
+The entry for "." should correspond to the same inode number for the newly created dir.
+
+The entry for ".." should correspond to pwd.
+
+Finally update the parent dir to include this dir_entry.
+Update the size of the parent dir too!
+
+
 **cd**: It should be able to work with "." and "..". The file path provided can be 
 relative or absolute! If it does not start with "/" then it is a relative path.
 
