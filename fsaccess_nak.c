@@ -127,6 +127,8 @@ int remove_file(char *path);
 int make_dir(char *path);
 int change_dir(char *path);
 
+
+
 int main(int argc, char *argv) {
     if (argc < 2) {
         printf("Debug Flag parameter not supplied.\n");
@@ -165,7 +167,7 @@ int main(int argc, char *argv) {
             printf("\n\n");
         } else if (strcmp(splitter, "pwd") == 0) {
             print_absolute_path(pwd_inode_num);
-            printf("\n\n");
+            printf("\n");
         } else if (strcmp(splitter, "cpin") == 0) {
             char *arg1 = strtok(NULL, " ");
             char *arg2 = strtok(NULL, " ");
@@ -248,6 +250,8 @@ int main(int argc, char *argv) {
         }
     }  // end while loop
 }  // end main
+
+
 
 // Function Definitions begin here
 // Pre-init code -- incase file system already exists: set vals for appropriate variables.
@@ -429,6 +433,7 @@ void create_root() {
 }
 
 
+
 // Print some of the superblock params: isize, fsize, nfree, ninode. Used for debugging.
 void print_superblock() {
     superblock_type sb;
@@ -439,6 +444,7 @@ void print_superblock() {
     printf("sB global var: isize, fsize, nfree, ninode: %d, %d, %d, %d\n", superBlock.isize, superBlock.fsize, superBlock.nfree, superBlock.ninode);
 }
 
+
 // Print out the buffer array for a block: Used for debugging.
 void print_char_buffer(char buffer[], int size) {
     printf("\n\tPrinting buffer!\n");
@@ -447,6 +453,7 @@ void print_char_buffer(char buffer[], int size) {
     }
     printf("\n");
 }
+
 
 // Get the inode_type struct corresponding to the given inode number
 inode_type read_inode_from_num(unsigned short inode_num) {
@@ -460,6 +467,7 @@ inode_type read_inode_from_num(unsigned short inode_num) {
     return tmp_inode;
 }
 
+
 // Write given inode struct into the inode table i.e as a inode with number = inode_num
 void write_inode_num(unsigned short inode_num, inode_type inode) {
     unsigned int inodes_per_block = BLOCK_SIZE / INODE_SIZE;
@@ -468,6 +476,7 @@ void write_inode_num(unsigned short inode_num, inode_type inode) {
     lseek(fileDescriptor, block_num * BLOCK_SIZE + offset * INODE_SIZE, SEEK_SET);
     write(fileDescriptor, &inode, INODE_SIZE);
 }
+
 
 // Get a free inode number
 unsigned short get_free_inode_num() {
@@ -499,6 +508,7 @@ unsigned short get_free_inode_num() {
     return superBlock.inode[superBlock.ninode];
 }
 
+
 // Get a free block number.
 unsigned int get_free_block() {
     --superBlock.nfree;
@@ -512,10 +522,12 @@ unsigned int get_free_block() {
     return superBlock.free[superBlock.nfree];
 }
 
+
 // Check whether file_name is the file associated with given  dir_entry dir
 bool filename_in_direntry(char *file_name, dir_type dir) {
     return (strcmp(file_name, dir.filename) == 0);
 }
+
 
 // Check whether the flags satisfy those for: allocated and a directory
 bool check_flag_dir(unsigned short flags) {
@@ -523,14 +535,16 @@ bool check_flag_dir(unsigned short flags) {
     return (((flags & dir_flag) != 0) && ((flags & inode_alloc_flag) != 0));
 }
 
+
 // Check whether the provided inode flags correspond to a plain file.
 bool is_plain_file(unsigned short flags) {
     bool is_alloc_file = ((flags & inode_alloc_flag) != 0);
     bool is_dir = ((flags & dir_flag) != 0);
     bool ans = is_alloc_file && !(is_dir);  // allocated as file and not dir => plain file!
-    printf(" FlagCheck: is_alloc: %d, is_dir: %d\n", is_alloc_file, is_dir);
+    // printf(" FlagCheck: is_alloc: %d, is_dir: %d\n", is_alloc_file, is_dir);
     return ans;
 }
+
 
 // v2 Check whether the provided inode flags correspond to a plain file.
 bool is_plain_file_vInode(unsigned int inode_num) {
@@ -539,7 +553,7 @@ bool is_plain_file_vInode(unsigned int inode_num) {
     bool is_alloc_file = ((flags & inode_alloc_flag) != 0);
     bool is_dir = ((flags & dir_flag) != 0);
     bool ans = is_alloc_file && !(is_dir);  // allocated as file and not dir => plain file!
-    printf(" FlagCheck: is_alloc: %d, is_dir: %d\n", is_alloc_file, is_dir);
+    // printf(" FlagCheck: is_alloc: %d, is_dir: %d\n", is_alloc_file, is_dir);
     return ans;
 }
 
@@ -583,6 +597,7 @@ int get_inode_from_base(char *dirname, int basedir_inode_num) {
     return dir_inode_num;
 }
 
+
 // Will fill in the string buffer with the dirname corresponding to the child inode num if it
 // is found in base_dir
 void get_dirname_from_base(char *string_buffer, int child_inode_num, int basedir_inode_num) {
@@ -617,6 +632,7 @@ void get_dirname_from_base(char *string_buffer, int child_inode_num, int basedir
         }
     }
 }
+
 
 // Given a directory entry and parent inode number, writes to appropriate location
 // in parent's data block and updates its size!
@@ -656,7 +672,6 @@ int write_to_parent(dir_type dir, int parent_inode_num) {
 }
 
 
-
 // Given a directory entry and parent inode number, writes to appropriate location
 // in parent's data block and updates its size!
 int write_to_parent_old(dir_type dir, int parent_inode_num) {
@@ -683,11 +698,7 @@ int write_to_parent_old(dir_type dir, int parent_inode_num) {
 }
 
 
-
-
-
-
-
+// Check whether are consecutive "//" chars in the path. Show it as invalid.
 bool double_slash_in_path(char *path) {
     char prev = path[0];
     for (int i = 1; i < strlen(path); ++i) {
@@ -703,11 +714,13 @@ bool double_slash_in_path(char *path) {
     return false;
 }
 
+
 // Returns the inode number for the parent directory
 int get_parent_dir(unsigned int dir_inode_num) {
     char parent[] = "..";  // every dir_entry should have this!
     return get_inode_from_base(parent, dir_inode_num);
 }
+
 
 // Return 0 if not, 1 if ".", 2 if "..", 3 if "/"
 int special_path(char *path) {
@@ -725,19 +738,21 @@ int special_path(char *path) {
     }
 }
 
+// Print out the absolute path from root for a given dir by going one level up until
+// we reach the root dir.
 void print_absolute_path(unsigned int cur_inode_num) {
     char tmp_string[100];
     printf(" Current Path: ");
     int par_inode_num = get_parent_dir(cur_inode_num);
     get_dirname_from_base(tmp_string, cur_inode_num, par_inode_num);
-    // printf("%s <- ", tmp_string);
-    printf("%s (cur: %d, par: %d) <- ", tmp_string, cur_inode_num, par_inode_num);
+    printf("%s <- ", tmp_string);
+    // printf("%s (cur: %d, par: %d) <- ", tmp_string, cur_inode_num, par_inode_num);
     while (par_inode_num > 1) {
         cur_inode_num = par_inode_num;
         par_inode_num = get_parent_dir(cur_inode_num);
         get_dirname_from_base(tmp_string, cur_inode_num, par_inode_num);
-        // printf("%s <- ", tmp_string);
-        printf("%s (cur: %d, par: %d) <- ", tmp_string, cur_inode_num, par_inode_num);
+        printf("%s <- ", tmp_string);
+        // printf("%s (cur: %d, par: %d) <- ", tmp_string, cur_inode_num, par_inode_num);
     }
     printf("/ (root) \n");
 }
@@ -746,7 +761,9 @@ void print_absolute_path(unsigned int cur_inode_num) {
 // List the contents of PWD
 void list_pwd() {
     inode_type pwd_inode = read_inode_from_num(pwd_inode_num);  // pwd_inode
-    printf(" Listing PWD contents: ");
+
+    printf("Listing format -- fname (inode). Free space in between entries will also show up!\n");
+    printf("Contents: ");
     // Move to appropriate position in root dir's last data block and write out info
     dir_type tmp_buffer;
     for (int i = 0; i < ADDR_SIZE; ++i) {
@@ -759,26 +776,28 @@ void list_pwd() {
         int count = read_bytes;
         while (read_bytes > 0 && count <= BLOCK_SIZE) {
             if(tmp_buffer.inode == 0){
-                if (strcmp(tmp_buffer.filename, "empty") != 0){
+                if (strcmp(tmp_buffer.filename, "FREE") != 0){
                     break;
                 }
             }
-            printf("%d:%s, ", tmp_buffer.inode, tmp_buffer.filename);
+            printf("%s (%d), ", tmp_buffer.filename, tmp_buffer.inode);
             read_bytes = read(fileDescriptor, &tmp_buffer, sizeof(dir_type));
             count += read_bytes;
         }
     }
 }
 
+
 // Check whether a given dir is empty or not. Input is the dir's inode number
 bool is_empty_dir(int dir_inode_num) {
     inode_type dir_inode = read_inode_from_num(dir_inode_num);
+    printf("  debug: dir size: %d\n", dir_inode.size);
     if(dir_inode.size > 2 * sizeof(dir_type)){        
         return false;
-    }
-    printf("  debug: dir size: %d\n", dir_inode.size);
+    }    
     return true;
 }
+
 
 // Return final file/dir's inode nume if valid. Else return negative numbers for errors.
 int traverse_path(char *path) {
@@ -888,27 +907,23 @@ int copy_in_2(char *external_file, char *v6_filename) {
             strcpy(final_file, token);
         }
         token = strtok_r(NULL, "/", &rest);
-    }
-    printf(" Final File/Dir Name: %s, path: %s\n", final_file, v6_filename);
-
+    }    
+    // printf(" Final File/Dir Name: %s, path: %s\n", final_file, v6_filename);    
     if (strlen(final_file) > 14) {
         printf(" Error: Too long of a dir name! Should be under 14!\n");
         return -4;
     }
-
     // USE linux system calls! Defined in <libgen.h>
     strcpy(copy_str, v6_filename);
     char *parent_dir_path = dirname(copy_str);
     // Note that traverse_path modifies the string passed to it!
-    printf(" Parent path: %s, ", parent_dir_path);
+    // printf(" Parent path: %s, ", parent_dir_path);
     int par_inode_num = traverse_path(parent_dir_path);
-    printf(" Parent inode: %d\n", par_inode_num);
-
+    // printf(" Parent inode: %d\n", par_inode_num);
     if (par_inode_num < 1) {
         printf(" Error in Path! Parent Dir not found!\n");
         return -1;
     }
-
     unsigned short inode_num = get_free_inode_num();
     if (inode_num < 2) {
         printf("Could not allocate inode for file. Error!\n");
@@ -926,18 +941,12 @@ int copy_in_2(char *external_file, char *v6_filename) {
     inode.actime[0] = 0;
     inode.modtime[0] = 0;
     inode.modtime[1] = 0;
-
-    if (!is_plain_file(inode.flags)) {
-        printf(" Plain file Flag Setting Failed!\n");
-        // return -5;
-    } else {
-        printf(" Plain file Flag Setting Passed!\n");
-    }
-
-
-    if (DEBUG_FLAG) {
-        printf("Allocated an I-Node for the file: %d\n", inode_num);
-    }
+    // if (!is_plain_file(inode.flags)) {
+    //     printf(" Plain file Flag Setting Failed!\n");
+    //     // return -5;
+    // } else {
+    //     printf(" Plain file Flag Setting Passed!\n");
+    // }
 
     // Now for the data blocks!
     char buffer[BLOCK_SIZE] = {0};  // init with zero to avoid garbage value.
@@ -1039,43 +1048,27 @@ int copy_out_2(char *v6_file, char *external_file) {
         }
         token = strtok_r(NULL, "/", &rest);
     }
-    printf(" Final File/Dir Name: %s\n", final_file);
-
+    // printf(" Final File/Dir Name: %s\n", final_file);
     if (strlen(final_file) > 14) {
         printf(" Error: Too long of a dir name! Should be under 14!\n");
         return -4;
     }
-
     // USE linux system calls! Defined in <libgen.h>
     strcpy(copy_str, v6_file);
     char *parent_dir_path = dirname(copy_str);
     // Note that traverse_path modifies the string passed to it!
-    printf(" Parent path: %s, ", parent_dir_path);
+    // printf(" Parent path: %s, ", parent_dir_path);
     int par_inode_num = traverse_path(parent_dir_path);
-    printf(" Parent inode: %d\n", par_inode_num);
+    // printf(" Parent inode: %d\n", par_inode_num);
 
     if (par_inode_num < 1) {
         printf(" Error in Path! Parent Dir not found!\n");
         return -1;
     }
-
     // unsigned int root_inode_num = 1;
     // check for existence of the v6 file in parent dir
-    printf("debug: Path before inodev6file: %s\n", v6_file);
-    unsigned int inode_num_v6file = get_inode_from_base(final_file, par_inode_num);
-    if (inode_num_v6file <= 0) {
-        printf(" Error: Given V6 file not found!\n");
-        return -1;
-    }
-
-    // If the check passes, then we can re-factor the code to directly
-    // get the inode number corresponding to the v6_file through the
-    // trav_inode_num.
-    if (inode_num_v6file == trav_inode_num) {
-        printf("\n---Check Passed-------\n");
-    } else {
-        printf("\n---Check Failed: iv6:%d, itrv:%d \n", inode_num_v6file, trav_inode_num);
-    }
+    // printf("debug: Path before inodev6file: %s\n", v6_file);
+    unsigned int inode_num_v6file = trav_inode_num;
 
     // Now using the inode, write out contents to external file
     inode_type inode_v6file = read_inode_from_num(inode_num_v6file);
@@ -1113,7 +1106,7 @@ void clear_and_free_block(unsigned int block_num) {
     lseek(fileDescriptor, block_num * BLOCK_SIZE, SEEK_SET);
     write(fileDescriptor, buffer, BLOCK_SIZE);
     add_block_to_free_list(block_num, buffer);
-    printf(" debug: Data block cleared!\n");
+    // printf(" debug: Data block cleared!\n");
 }
 
 
@@ -1130,20 +1123,17 @@ void clear_inode_data(unsigned int inode_num) {
     }
     file_inode.flags = 0; // Setting all flags to zero! Unallocated!
     write_inode_num(inode_num, file_inode);
-    printf(" debug: Inode cleared!\n");
+    // printf(" debug: Inode cleared!\n");
 }
 
 
-
+// Remove the dir_entry for a file from the parent(base) dir.
 int remove_dir_entry(char* fname, int finode_num, int basedir_inode_num) {
-    
     inode_type base_inode = read_inode_from_num(basedir_inode_num);
     if (!(check_flag_dir(base_inode.flags))) {
         printf(" Error: Base directory not allocated or not init as a directory!\n");
         return -1;
     }
-    
-    
     bool flag_found = false;
     // Read in the data: directory entries for this base dir
     for (int i = 0; i < ADDR_SIZE; ++i) {
@@ -1154,7 +1144,7 @@ int remove_dir_entry(char* fname, int finode_num, int basedir_inode_num) {
         dir_type tmp_buffer; // For reading in the data.
         dir_type overwrite_buffer;
         overwrite_buffer.inode = 0; // Signifies that it is a free dir entry space.  
-        strcpy(overwrite_buffer.filename, "empty"); // For help in lspwd command.
+        strcpy(overwrite_buffer.filename, "FREE"); // For help in lspwd command.
 
         unsigned int block_num = base_inode.addr[i];
         lseek(fileDescriptor, block_num * BLOCK_SIZE, SEEK_SET);
@@ -1165,11 +1155,11 @@ int remove_dir_entry(char* fname, int finode_num, int basedir_inode_num) {
                 // Found the File to Delete!
                 // Seek the position to just before the currently read buffer using the 
                 // amount in count.
-                printf(" \ndeb: fname, inode: %s, %d", tmp_buffer.filename, tmp_buffer.inode);
-                printf(" deb: over-writing\n");
+                // printf(" \ndeb: fname, inode: %s, %d", tmp_buffer.filename, tmp_buffer.inode);
+                // printf(" deb: over-writing\n");
                 int offset = count - read_bytes;
                 lseek(fileDescriptor, block_num * BLOCK_SIZE + offset, SEEK_SET);
-                write(fileDescriptor, &overwrite_buffer, sizeof(dir_type));
+                write(fileDescriptor, &overwrite_buffer, sizeof(dir_type));                
                 flag_found = true;                 // to break out of outer loop
                 break;
             }
@@ -1177,10 +1167,14 @@ int remove_dir_entry(char* fname, int finode_num, int basedir_inode_num) {
             count += read_bytes;
         }
     }
+    // Now reduce the size of the base directory and write out the changes!
+    base_inode.size -= sizeof(dir_type);
+    write_inode_num(basedir_inode_num, base_inode);
     return 1;   
 }
 
 
+// Remove given v6 file or empty directory from the file system.
 int remove_file(char *v6_file) {
     if (strlen(v6_file) > MAX_F_LEN) {
         printf(" Error: Path too long! Should be under: %d chars.\n", MAX_F_LEN);
@@ -1198,8 +1192,7 @@ int remove_file(char *v6_file) {
     }
     char copy_str[MAX_F_LEN];
     strcpy(copy_str, v6_file);
-    int file_inode_num = traverse_path(copy_str);
-    printf(" debug: file inode: %d\n", file_inode_num);
+    int file_inode_num = traverse_path(copy_str);  
     
     if (file_inode_num < 2) {
         printf(" Error: File not found!!\n");
@@ -1219,15 +1212,13 @@ int remove_file(char *v6_file) {
     // int parent_inode_num = get_parent_dir(trav_inode_num);
     strcpy(copy_str, v6_file);
     char *parent_dir_path = dirname(copy_str);    
-    printf(" debug: Parent path: %s\n", parent_dir_path);
+    // printf(" debug: Parent path: %s\n", parent_dir_path);
     int par_inode_num = traverse_path(parent_dir_path);
     if (par_inode_num < 0) {
         printf(" Error: Parent Directory %s does not exist!\n", parent_dir_path);
         return -4;
     }
-
-    printf(" debug: Parent Inode Num: %d\n", par_inode_num);
-
+    // printf(" debug: Parent Inode Num: %d\n", par_inode_num);
     strcpy(copy_str, v6_file);
     char *rest = NULL;
     char *token = strtok_r(copy_str, "/", &rest);
@@ -1239,17 +1230,18 @@ int remove_file(char *v6_file) {
         }
         token = strtok_r(NULL, "/", &rest);
     }
-    printf(" Final File/Dir Name: %s\n", final_file);
-
+    // printf(" Final File/Dir Name: %s\n", final_file);
     int res = remove_dir_entry(final_file, file_inode_num, par_inode_num);
     if(res < 0){
         printf(" Error: In removing the dir entry!\n");
         return -6;
     }
+    printf(" debug: Deleted file inode: %d\n", file_inode_num);
     return 1;
 }
 
 
+// Change the current directory (pwd) to the given path
 int change_dir(char *path) {
     char copy_str[MAX_F_LEN];
     strcpy(copy_str, path);
@@ -1274,6 +1266,7 @@ int change_dir(char *path) {
 }
 
 
+// Make a new directory at the given path.
 int make_dir(char *path) {
     if (strlen(path) > MAX_F_LEN) {
         printf(" Error: Path too long! Should be under: %d chars.\n", MAX_F_LEN);
@@ -1305,29 +1298,25 @@ int make_dir(char *path) {
         }
         token = strtok_r(NULL, "/", &rest);
     }
-    printf(" Final File/Dir Name: %s\n", final_file);
-
+    // printf(" Final File/Dir Name: %s\n", final_file);
     if (strlen(final_file) > 14) {
         printf(" Error: Too long of a dir name! Should be under 14!\n");
         return -4;
     }
-
     // USE linux system calls! Defined in <libgen.h>
     strcpy(copy, path);
     char *parent_dir_path = dirname(copy);
     // char* parent_dir_name = basename(copy);
-    printf(" Parent path: %s\n", parent_dir_path);
+    // printf(" Parent path: %s\n", parent_dir_path);
     int par_inode_num = traverse_path(parent_dir_path);
     if (par_inode_num < 0) {
         printf(" Error: Parent Directory %s does not exist!\n", parent_dir_path);
         return -4;
     }
-
     if (get_inode_from_base(final_file, par_inode_num) > 0) {
         printf(" Error: Directory/File already exists!\n");
         return -5;
     }
-
     // Now passed the checks for the parent dir and have its inode number.
     inode_type par_inode = read_inode_from_num(par_inode_num);
 
