@@ -624,10 +624,10 @@ bool double_slash_in_path(char *path) {
         if (path[i] == '/' && prev == '/') {
             printf(" Please dont have a consecutive '/' char.\n");
             return true;
-        } else if (path[i] == '.' && prev == '/') {
-            printf(" Please dont include a '.' immediately after a '/' \n");
-            return true;
-        }
+        } //else if (path[i] == '.' && prev == '/') {
+        //     printf(" Please dont include a '.' immediately after a '/' \n");
+        //     return true;
+        // }
         prev = path[i];
     }
     return false;
@@ -734,17 +734,19 @@ int traverse_path(char* path) {
     while (token) {
         // printf("   debug: %s \n", token);
         if(special_path(token) == 2) {            
-            base_inode_num = get_parent_dir(pwd_inode_num); // base is parent dir of pwd
+            // base_inode_num = get_parent_dir(pwd_inode_num); // base is parent dir of pwd
+            base_inode_num = get_parent_dir(base_inode_num);
             token = strtok_r(NULL, "/", &rest);
             continue;
         } else if(special_path(token) == 1){
-            base_inode_num = pwd_inode_num;
+            // base_inode_num = pwd_inode_num;
+            // base_inode nume is unchanged!
             token = strtok_r(NULL, "/", &rest);
             continue;
         }
         int found_inode = get_inode_from_base(token, base_inode_num);
         if( found_inode <= 0) {
-            // printf(" Error: %s Dir/File not found!\n", token);
+            printf(" Error: %s Dir/File not found!\n", token);
             return -3;
         }        
         // ELSE
@@ -1040,75 +1042,13 @@ int remove_file(char *path) {
 
 
 int change_dir(char *path) {
-    // char copy_str[MAX_F_LEN];
-    // strcpy(copy_str, path);
-    // int base_inode_num = traverse_path(copy_str);
-    // if(base_inode_num < 1){
-    //     printf(" Error: Traversal failed!\n");
-    //     return -1;
-    // }
-    if (strlen(path) > MAX_F_LEN) {
-        printf(" Error: Path too long! Should be under: %d chars.\n", MAX_F_LEN);
+    char copy_str[MAX_F_LEN];
+    strcpy(copy_str, path);
+    int base_inode_num = traverse_path(copy_str);
+    if(base_inode_num < 1){
+        printf(" Error: Traversal failed and exited !\n");
         return -1;
     }
-
-    if (double_slash_in_path(path)) {
-        printf(" Error: Path is invalid!\n");
-        return -2;
-    }
-
-    if(special_path(path) == 1){
-        printf(" Staying in the same directory!\n");
-        printf(" PWD inode: %d\n", pwd_inode_num);
-        print_absolute_path(pwd_inode_num);
-        return 1;
-    } else if (special_path(path) == 2) {
-        printf(" Going to parent directory!\n");
-        pwd_inode_num = get_parent_dir(pwd_inode_num);
-        strcpy(pwd_path, "..");
-        printf(" PWD inode: %d\n", pwd_inode_num);
-        print_absolute_path(pwd_inode_num);
-        return 1;
-    } else if (special_path(path) == 3) {
-        pwd_inode_num = 1; // ROOT INODE
-        strcpy(pwd_path, "/");
-        return 1;
-    }
-
-
-    // Starting base inode number. Default value is the pwd.
-    int base_inode_num = pwd_inode_num;
-
-    //  ("Absolute path!\n");
-    if (path[0] == '/') {        
-        base_inode_num = 1; // init with ROOT INODE (num = 1)
-    }
-
-    // String Tokenizer: https://stackoverflow.com/a/27860945/9579260
-    char* rest = NULL;
-    char* token = strtok_r(path, "/", &rest);
-    while (token) {
-        // printf("   debug: %s \n", token);
-        if(special_path(token) == 2) {            
-            base_inode_num = get_parent_dir(pwd_inode_num); // base is parent dir of pwd
-            token = strtok_r(NULL, "/", &rest);
-            continue;
-        } else if(special_path(token) == 1){
-            base_inode_num = pwd_inode_num;
-            token = strtok_r(NULL, "/", &rest);
-            continue;
-        }
-        int found_inode = get_inode_from_base(token, base_inode_num);
-        if( found_inode <= 0) {
-            printf(" Error: While traversing the path. Dir/File name '%s' not found!\n", token);
-            return -3;
-        }        
-        // ELSE
-        // printf(": %s\n", token);
-        base_inode_num = found_inode;                
-        token = strtok_r(NULL, "/", &rest);
-    }
-    // At the end of the loop, the base_inode_num will correspond to the last token's.
     // Finally just need to check if it is a directory!
     inode_type base_inode = read_inode_from_num(base_inode_num);
     if (!(check_flag_dir(base_inode.flags))) {
@@ -1116,7 +1056,6 @@ int change_dir(char *path) {
         printf(" Error: Not a directory!\n");
         return -4;
     }
-
     // All checks passed! Now update the global pwd variables.
     pwd_inode_num = base_inode_num;
     strcpy(pwd_path, path);
