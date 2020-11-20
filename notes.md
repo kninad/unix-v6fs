@@ -79,9 +79,9 @@ functions.
 - Then free up the inode number (by setting appropriate flags) for that file
 - Free up the data associated data blocks for it -- by over-writing it with zero
 - Free up the data blocks (from the given number) by adding them to free list?
-- Remove the associated `dir_entry`.
+- Remove the associated `dir_entry` from the parent dir.
 - Only small files btw. Note it will be kind of reverse for cpin.
-- If the directory is empty, then delete it.
+- If the directory is empty, then delete it ?? OR ELSE print a clear error message!
 
 **mkdir**: Should have two entries for "." and "..". Will make a new entry in the pwd
 file's (dir) inode for the new directory entry. Should not allow if the some parent dir
@@ -103,6 +103,7 @@ relative or absolute! If it does not start with "/" then it is a relative path.
 of the basedir -- using `dirname()` : if not ERROR. Create a new entry in this. Else if
 just a file name is given, then create an entry in the pwd.
 
+Need to modify them according to the file path.
 
 
 ### Part 1

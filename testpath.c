@@ -4,9 +4,11 @@
 
 
 void path_print(char* path){
+    printf("Ppath: %s \n", path);
+    char copy[100];
+    strcpy(copy, path);
     char* dir = dirname(path);
     char* file = basename(path);
-    printf("Printing Path:\n");
     printf("LEN: %ld\n", strlen(path));
     printf("DIR: %s\n", dir);
     printf("FIL: %s\n\n", file);    
@@ -14,12 +16,21 @@ void path_print(char* path){
 
 void path_list(char* path) {
     // https://stackoverflow.com/a/27860945/9579260
+    char copy[100];
+    strcpy(copy, path);
     char* rest = NULL;
-    char* token = strtok_r(path, "/", &rest);
+    char* token = strtok_r(copy, "/", &rest);
+    char new_path[80];
+    printf("Printing Path: %s \n", path);
     while (token){
-        printf(": %s\n", token);
+        printf(": %s\n", token);        
+        if(token) {
+            strcpy(new_path, token);
+        }
         token = strtok_r(NULL, "/", &rest);
     }
+    printf("Ppath: %s\n\n", path);
+    printf("New path: %s\n\n", new_path);
 }
 
 int check_double_slash(char* path) {    
@@ -35,16 +46,22 @@ int check_double_slash(char* path) {
 }
 
 int main(void)
-{
+{   
+    char buffer[100];
     char path[] = "/this/is/my/file/path.txt" ;
     // path_print(path);
     // path_list(path);
-    char path2[] = "local/usr//ninad/tst";
-    // path_print(path2);
-    // path_list(path2);
+    char path2[] = "local/n2";
+    strcpy(buffer, path2);
+    path_list(buffer);
+    strcpy(buffer, path2);
+    path_print(buffer);    
+    
+    // int status;
+    // status = check_double_slash(path);
+    // status = check_double_slash(path2);
+    
     int status;
-    status = check_double_slash(path);
-    status = check_double_slash(path2);
-  
+    status = strcmp(path, ".");
     return 0;
 }
