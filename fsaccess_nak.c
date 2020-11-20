@@ -113,9 +113,7 @@ void print_absolute_path(unsigned int cur_inode_num);
 int traverse_path(char* path);
 void list_pwd();
 
-int copy_in(char *external_file, char *v6_file);
 int copy_in_2(char *external_file, char *v6_filename);
-int copy_out(char *v6_file, char *external_file);
 int copy_out_2(char *v6_file, char *external_file);
 
 int remove_file(char *path);
@@ -703,12 +701,12 @@ void list_pwd(){
 // Return final file/dir's inode nume if valid. Else return negative numbers for errors.
 int traverse_path(char* path) {
     if (strlen(path) > MAX_F_LEN) {
-        // printf(" Error: File path too long! Should be under: %d chars.\n", MAX_F_LEN);
+        printf(" Error: File path too long! Should be under: %d chars.\n", MAX_F_LEN);
         return -1;
     }
 
     if (double_slash_in_path(path)) {
-        // printf(" Error: File path invalid! Should not contain consecutive \\ char.\n");
+        printf(" Error: File path invalid! Should not contain consecutive \\ char.\n");
         return -2;
     }
 
@@ -734,11 +732,14 @@ int traverse_path(char* path) {
     char* rest = NULL;
     char* token = strtok_r(path, "/", &rest);
     while (token) {
+        // printf("   debug: %s \n", token);
         if(special_path(token) == 2) {            
             base_inode_num = get_parent_dir(pwd_inode_num); // base is parent dir of pwd
+            token = strtok_r(NULL, "/", &rest);
             continue;
         } else if(special_path(token) == 1){
             base_inode_num = pwd_inode_num;
+            token = strtok_r(NULL, "/", &rest);
             continue;
         }
         int found_inode = get_inode_from_base(token, base_inode_num);
@@ -756,95 +757,9 @@ int traverse_path(char* path) {
 
 
 
-
-
-// Copy in external file into a v6 file
-int copy_in(char *external_file, char *v6_filename) {
-    printf("This will over-write any existing v6 file!\n");
-    int extf_descriptor;
-    if ((extf_descriptor = open(external_file, O_RDONLY, 0700)) == -1) {
-        printf("\n[Error] open() for External File failed with the following error [%s]\n", strerror(errno));
-        return -1;
-    }
-
-    if (strlen(v6_filename) > 14) {
-        printf("\n[Error] filename should be below 14 characters!\n");
-        return -1;
-    }
-
-    if (DEBUG_FLAG) {
-        printf("Opened the external file.\n");
-    }
-
-    unsigned short inode_num = get_free_inode_num();
-    if (inode_num < 2) {
-        printf("Could not allocate inode for file. Error!\n");
-        return -1;
-    }
-
-    inode_type inode;
-    inode.flags = inode_alloc_flag | dir_access_rights;  // set flags
-    inode.nlinks = 0;
-    inode.uid = 0;
-    inode.gid = 0;
-    inode.size = 0;  // init the file size to zero. will be set later.
-    inode.actime[0] = 0;
-    inode.modtime[0] = 0;
-    inode.modtime[1] = 0;
-
-    if (DEBUG_FLAG) {
-        printf("Allocated an I-Node for the file: %d\n", inode_num);
-    }
-
-    // Now for the data blocks!
-    char buffer[BLOCK_SIZE] = {0};  // init with zero to avoid garbage value.
-    int read_flag, block_num;
-    unsigned int fsize = 0, idx = 0;  // idx is for the addr[] array for the v6 file's inode.
-    read_flag = read(extf_descriptor, buffer, BLOCK_SIZE);
-    while (read_flag > 0) {  // 0 -> EOF, -1 -> Error.
-        if (DEBUG_FLAG) {
-            printf("params: %d, %d, %d", read_flag, idx, fsize);
-            print_char_buffer(buffer, BLOCK_SIZE);
-        }
-        block_num = get_free_block();
-        lseek(fileDescriptor, block_num * BLOCK_SIZE, SEEK_SET);
-        write(fileDescriptor, buffer, BLOCK_SIZE);
-        inode.addr[idx] = block_num;
-        idx += 1;
-        fsize += read_flag;  // increment number of bytes read
-        // over-write the buffer!
-        read_flag = read(extf_descriptor, buffer, BLOCK_SIZE);
-    }
-
-    if (DEBUG_FLAG) {
-        printf("Wrote the data to data-blocks for the assigned inode.\n");
-        printf("The file size is: %d\n", fsize);
-    }
-    // Set the internal file size, even though its written one block at a time!
-    inode.size = fsize;
-    write_inode_num(inode_num, inode);
-
-    if (DEBUG_FLAG) {
-        printf("Wrote the i-node to the inode-table in num: %d\n", inode_num);
-    }
-
-    // Make this into a general function.
-    // Update Root Directory Data Block with v6file info (All files are stored in root)
-    dir_type v6file;
-    v6file.inode = inode_num;
-    strcpy(v6file.filename, v6_filename);  // v6file.filename := v6_filename;
-
-    int ROOT_INODE = 1;
-    write_to_parent(v6file, ROOT_INODE);
-
-    close(extf_descriptor);
-    return 1;  // success!
-}
-
-
 // Copy in v2 external file into a v6 file PATH
 int copy_in_2(char *external_file, char *v6_filename) {
-    printf("This will over-write any existing v6 file!\n");
+    // printf("This will over-write any existing v6 file!\n");
     int extf_descriptor;
     if ((extf_descriptor = open(external_file, O_RDONLY, 0700)) == -1) {
         printf("\n[Error] open() for External File failed with the following error [%s]\n", strerror(errno));
@@ -853,7 +768,6 @@ int copy_in_2(char *external_file, char *v6_filename) {
     if (DEBUG_FLAG) {
         printf("Opened the external file.\n");
     }
-
 
     if (strlen(v6_filename) > MAX_F_LEN) {
         printf(" Error: Path too long! Should be under: %d chars.\n", MAX_F_LEN);
@@ -863,25 +777,26 @@ int copy_in_2(char *external_file, char *v6_filename) {
     if (double_slash_in_path(v6_filename)) {
         printf(" Error: Path is invalid!\n");
         return -2;
-    }
-
+    }    
     if(special_path(v6_filename) > 0){
         printf(" Error: Path is invalid! Is a directory!\n");
         return -3;
     }
-
-    if (strlen(v6_filename) > 14) {
-        printf("\n[Error] filename should be below 14 characters!\n");
-        return -1;
+    char copy_str[MAX_F_LEN]; // copy is tmp string for various modifications on the passed path.
+    strcpy(copy_str, v6_filename);
+    if(traverse_path(copy_str) >= 1){
+        printf(" Error: File already exists!\n");
+        return -4;
     }
-
+    
+    
     // Snippet to get the final dir name!
     // https://stackoverflow.com/a/27860945/9579260
     // Make tmp copy !
-    char copy[100]; // copy is tmp string for various modifications on the passed path.
-    strcpy(copy, v6_filename);
+    
+    strcpy(copy_str, v6_filename);
     char* rest = NULL;
-    char* token = strtok_r(copy, "/", &rest);
+    char* token = strtok_r(copy_str, "/", &rest);
     char final_file[80];
     while (token){
         // printf(": %s\n", token);        
@@ -897,13 +812,15 @@ int copy_in_2(char *external_file, char *v6_filename) {
         return -4;
     }
 
-    char copy2[100]; // copy is tmp string for various modifications on the passed path.
+    
     // USE linux system calls! Defined in <libgen.h>
-    strcpy(copy2, v6_filename);
-    char* parent_dir_path = dirname(copy2);
-    // char* parent_dir_name = basename(copy);    
+    strcpy(copy_str, v6_filename);
+    char* parent_dir_path = dirname(copy_str);
+    // Note that traverse_path modifies the string passed to it!
+    printf(" Parent path: %s, ", parent_dir_path);
     int par_inode_num = traverse_path(parent_dir_path);
-    printf(" Parent path, inode: %s, %d\n", parent_dir_path, par_inode_num);
+    printf(" Parent inode: %d\n", par_inode_num);
+    
     if(par_inode_num < 1){
         printf(" Error in Path! Parent Dir not found!\n");
         return -1;
@@ -965,8 +882,8 @@ int copy_in_2(char *external_file, char *v6_filename) {
     // Update Root Directory Data Block with v6file info (All files are stored in root)
     dir_type v6file;
     v6file.inode = inode_num;
-    strcpy(v6file.filename, v6_filename);  // v6file.filename := v6_filename;
-
+    // strcpy(v6file.filename, v6_filename);  // v6file.filename := v6_filename;
+    strcpy(v6file.filename, final_file);
     write_to_parent(v6file, par_inode_num);
 
     close(extf_descriptor);
@@ -974,64 +891,8 @@ int copy_in_2(char *external_file, char *v6_filename) {
 }
 
 
-
-// Copy out from a v6 file into an external file
-int copy_out(char *v6_file, char *external_file) {
-    // Assumes external file does not exist. Otherwise will over-write.
-    int extf_descriptor;
-    if ((extf_descriptor = open(external_file, O_RDWR | O_CREAT, 0700)) == -1) {
-        printf(" open() failed with the following error [%s]\n", strerror(errno));
-        return -1;
-    }
-
-    if (DEBUG_FLAG) {
-        printf("Opened the external file.\n");
-    }
-    unsigned int root_inode_num = 1;
-    // check for existence of the v6 file
-    unsigned int inode_num_v6file = get_inode_from_base(v6_file, root_inode_num);
-    if (inode_num_v6file < 0) {
-        printf(" Error: Given V6 file not found!\n");
-        return -1;
-    }
-
-    // Now using the inode, write out contents to external file
-    inode_type inode_v6file = read_inode_from_num(inode_num_v6file);
-    int rem_fsize = inode_v6file.size;  // It will decrement with each write operation.
-    char buffer[BLOCK_SIZE] = {0};
-    lseek(extf_descriptor, 0, SEEK_SET);  // move to very beginning of external file
-    for (int i = 0; i < ADDR_SIZE; ++i) {
-        unsigned int curr_block_num = inode_v6file.addr[i];
-        if (curr_block_num == 0 || rem_fsize <= 0) {  // go no further!
-            break;
-        }
-        int bytes_to_write = 0;
-        // If remaining file size is greater than a block size
-        // we write out the entire block, Else we just write the remaining fsize.
-        if (rem_fsize > BLOCK_SIZE) {
-            bytes_to_write = BLOCK_SIZE;
-        } else {
-            bytes_to_write = rem_fsize;
-        }
-        lseek(fileDescriptor, curr_block_num * BLOCK_SIZE, SEEK_SET);
-        // print_char_buffer(buffer, BLOCK_SIZE);
-        read(fileDescriptor, buffer, BLOCK_SIZE);
-        write(extf_descriptor, buffer, bytes_to_write);
-        rem_fsize -= bytes_to_write;
-    }
-    close(extf_descriptor);
-    return 1;
-}
-
-
 // Copy out v2 from a v6 file PATH into an external file
 int copy_out_2(char *v6_file, char *external_file) {
-    // Assumes external file does not exist. Otherwise will over-write.
-    int extf_descriptor;
-    if ((extf_descriptor = open(external_file, O_RDWR | O_CREAT, 0700)) == -1) {
-        printf(" open() failed with the following error [%s]\n", strerror(errno));
-        return -1;
-    }
     if (DEBUG_FLAG) {
         printf("Opened the external file.\n");
     }
@@ -1047,22 +908,37 @@ int copy_out_2(char *v6_file, char *external_file) {
     }
 
     if(special_path(v6_file) > 0){
-        printf(" Error: Path is invalid! Should not be '.', '..' or '/' chars.\n");
+        printf(" Error: Path is invalid! Is a directory!\n");
         return -3;
     }
+    char copy_str[MAX_F_LEN];
+    strcpy(copy_str, v6_file);
+    int trav_inode_num = traverse_path(copy_str);
+    if(trav_inode_num < 2) {
+        printf(" Error: File not found!!\n");
+        return -4;
+    }
+    inode_type trav_inode = read_inode_from_num(trav_inode_num);
+    if(! is_plain_file(trav_inode.flags)){
+        printf(" Error: Not a plain file, is a directory!\n");
+        return -5;
+    }
 
-    if (strlen(v6_file) > 14) {
-        printf("\n[Error] filename should be below 14 characters!\n");
+    // Assumes external file does not exist. Otherwise will over-write.
+    int extf_descriptor;
+    if ((extf_descriptor = open(external_file, O_RDWR | O_CREAT, 0700)) == -1) {
+        printf(" open() failed with the following error [%s]\n", strerror(errno));
         return -1;
     }
+
 
     // Snippet to get the final dir name!
     // https://stackoverflow.com/a/27860945/9579260
     // Make tmp copy !
-    char copy[100]; // copy is tmp string for various modifications on the passed path.
-    strcpy(copy, v6_file);
+    
+    strcpy(copy_str, v6_file);
     char* rest = NULL;
-    char* token = strtok_r(copy, "/", &rest);
+    char* token = strtok_r(copy_str, "/", &rest);
     char final_file[80];
     while (token){
         // printf(": %s\n", token);        
@@ -1079,13 +955,15 @@ int copy_out_2(char *v6_file, char *external_file) {
     }
 
     // USE linux system calls! Defined in <libgen.h>
-    strcpy(copy, v6_file);
-    char* parent_dir_path = dirname(copy);
-    // char* parent_dir_name = basename(copy);
+    strcpy(copy_str, v6_file);
+    char* parent_dir_path = dirname(copy_str);
+    // Note that traverse_path modifies the string passed to it!
+    printf(" Parent path: %s, ", parent_dir_path);
     int par_inode_num = traverse_path(parent_dir_path);
-    printf(" Parent path, inode: %s, %d\n", parent_dir_path, par_inode_num);
+    printf(" Parent inode: %d\n", par_inode_num);
+    
     if(par_inode_num < 1){
-        printf(" Error in Path!\n");
+        printf(" Error in Path! Parent Dir not found!\n");
         return -1;
     }
 
@@ -1095,6 +973,15 @@ int copy_out_2(char *v6_file, char *external_file) {
     if (inode_num_v6file < 0) {
         printf(" Error: Given V6 file not found!\n");
         return -1;
+    }
+    
+    // If the check passes, then we can re-factor the code to directly
+    // get the inode number corresponding to the v6_file through the 
+    // trav_inode_num.
+    if(inode_num_v6file == trav_inode_num){
+        printf("\n---Check Passed-------\n");
+    } else {
+        printf("\n---Check Failed: iv6:%d, itrv:%d \n", inode_num_v6file, trav_inode_num);
     }
 
     // Now using the inode, write out contents to external file
@@ -1153,6 +1040,13 @@ int remove_file(char *path) {
 
 
 int change_dir(char *path) {
+    // char copy_str[MAX_F_LEN];
+    // strcpy(copy_str, path);
+    // int base_inode_num = traverse_path(copy_str);
+    // if(base_inode_num < 1){
+    //     printf(" Error: Traversal failed!\n");
+    //     return -1;
+    // }
     if (strlen(path) > MAX_F_LEN) {
         printf(" Error: Path too long! Should be under: %d chars.\n", MAX_F_LEN);
         return -1;
@@ -1194,11 +1088,14 @@ int change_dir(char *path) {
     char* rest = NULL;
     char* token = strtok_r(path, "/", &rest);
     while (token) {
+        // printf("   debug: %s \n", token);
         if(special_path(token) == 2) {            
             base_inode_num = get_parent_dir(pwd_inode_num); // base is parent dir of pwd
+            token = strtok_r(NULL, "/", &rest);
             continue;
         } else if(special_path(token) == 1){
             base_inode_num = pwd_inode_num;
+            token = strtok_r(NULL, "/", &rest);
             continue;
         }
         int found_inode = get_inode_from_base(token, base_inode_num);
