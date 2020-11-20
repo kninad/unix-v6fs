@@ -61,6 +61,12 @@ int main(void)
     // status = check_double_slash(path);
     // status = check_double_slash(path2);
     
+    int buffer2[16/4] = {0};
+    for(int i = 0; i < 16/4; ++i){
+        printf("%d ", buffer2[i]);
+    }
+    printf("\n");
+
     int status;
     status = strcmp(path, ".");
     return 0;
