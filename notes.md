@@ -35,7 +35,7 @@ TODO
   at a time. This will ensure only required bytes are written -- **DONE**
   
 - Print error messages and warnings for every kind of user exceptions. Example: if the
-filename is greater than 14 chars etc.
+filename is greater than 14 chars etc. -- **DONE**
 
 
 Observations and Notes
@@ -82,6 +82,7 @@ functions.
 - Remove the associated `dir_entry` from the parent dir.
 - Only small files btw. Note it will be kind of reverse for cpin.
 - If the directory is empty, then delete it ?? OR ELSE print a clear error message!
+- Finally decrement the size of the parent dir via its inode.
 
 **mkdir**: Should have two entries for "." and "..". Will make a new entry in the pwd
 file's (dir) inode for the new directory entry. Should not allow if the some parent dir
@@ -98,6 +99,7 @@ Update the size of the parent dir too!
 
 **cd**: It should be able to work with "." and "..". The file path provided can be 
 relative or absolute! If it does not start with "/" then it is a relative path.
+Can just use the `traverse_path()` function here too.
 
 **cpin, cpout**: Should work with relative and absolute file paths. Check for the existence
 of the basedir -- using `dirname()` : if not ERROR. Create a new entry in this. Else if
@@ -106,7 +108,7 @@ just a file name is given, then create an entry in the pwd.
 Need to modify them according to the file path.
 
 
-### Part 1
+### Part 1 notes.
 
 Disk file convention: `v6fs.disk` -- adding a `.disk` at the end so that I can safely 
 add it to `.gitignore` file for the repo.
