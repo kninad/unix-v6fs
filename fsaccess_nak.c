@@ -7,13 +7,29 @@
 * **********************************************************************
 * Compilation:- $ gcc fsaccess_nak.c -std=gnu99 -o v6fs
 * Run using  :- $ ./v6fs
-* You will get a prompt where you can perform the following actions:
+* You will get a prompt where you can perform the following actions. The first command
+* on startup of the program always has to be initfs. 
 * **********************************************************************
 * This program allows user to do two things:
     1. initfs: Initilizes the file system and redesigning the Unix file system to accept large
         files of up tp 4GB, expands the free array to 152 elements, expands the i-node array to
         200 elemnts, doubles the i-node size to 64 bytes and other new features as well.
+    
     2. Quit: save all work and exit the program.
+    
+    3. cpin: Copy in an external file into a v6 file.
+
+    4. cpout: Copy a v6 file into an external file.
+
+    5. rm: Remove a v6 file/empty directory.
+
+    6. mkdir: Construct a new directory.
+
+    7. cd: Change the current working directory (pwd or cwd).
+
+    8. pwd: Print the current working directory.
+
+    9. ls: Print the contents (file names) of current working directory.
 
 * User Input:
     - initfs (file path) (# of total system blocks) (# of System i-nodes)
@@ -23,7 +39,7 @@
     - rm (v6 file)
     - mkdir (v6 dir)
     - cd (v6 path)
-    - lspwd
+    - ls
     - pwd
 
 * File name is limited to 14 characters.
@@ -148,7 +164,7 @@ int main(int argc, char *argv) {
     printf("*********************************\n");
     printf("* Unix V6 File System Simulation\n");
     printf("* Size of super block = %ld , size of i-node = %ld\n", sizeof(superBlock), sizeof(inode_type));
-    printf("* Available commands are: 1) initfs 2) cpin 3) cpout 4) cd 5) mkdir 6) rm 7) pwd 8) lspwd 9) q\n");
+    printf("* Available commands are: 1) initfs 2) cpin 3) cpout 4) cd 5) mkdir 6) rm 7) pwd 8) ls 9) q\n");
     printf("* The first command on startup always has to be initfs.\n");
     printf("\nEnter the required command:\n");
 
@@ -162,7 +178,7 @@ int main(int argc, char *argv) {
         if (strcmp(splitter, "initfs") == 0) {
             preInitialization();
             splitter = NULL;  // why? safety?
-        } else if (strcmp(splitter, "lspwd") == 0) {
+        } else if (strcmp(splitter, "ls") == 0) {
             list_pwd();
             printf("\n\n");
         } else if (strcmp(splitter, "pwd") == 0) {
